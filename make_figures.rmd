@@ -60,7 +60,10 @@ sem <- function(x){
 }
 ```
 
-```{r Store Seurat objects that are merged in a list for each dataset for easier access}
+
+Create a list of all expression matrices from all major mapper to further create
+the subsequent plots
+```{r load expression matrices}
 
 save_seurat_objects <- function(dataset, tools, filtered){
   filtered_data <- list()
@@ -87,6 +90,7 @@ save_seurat_objects <- function(dataset, tools, filtered){
           id_name <- paste(l,j,i,sep="__")
           filtered_data[[id_name]] <- read_data(i,j,k,l)
           seurat_list[[id_name]] <- CreateSeuratObject(filtered_data[[id_name]],project = id_name)
+          seurat_list[[id_name]]$percent.mt <- PercentageFeatureSet(seurat_list[[id_name]], pattern = "^MT-|^mt-")
         }
       }
     }
@@ -107,7 +111,7 @@ names(pbmc_cardiac_endo) <- gsub("pbmc_10x","PBMC", names(pbmc_cardiac_endo))
 plot_mapping_performance <- function(plot_data_df, max_limit, y_name){
   ggplot(data = plot_data_df, aes(Dataset, y = mean, fill = Mapper)) +
     geom_col(position = "dodge2", colour="grey30", show.legend = T, width = 0.7) +
-    geom_errorbar(aes(ymin=mean-sem,ymax=mean+sem), width = 0.4, position = position_dodge(.7)) +
+    geom_errorbar(aes(ymin = mean-sem, ymax = mean+sem), width = 0.4, position = position_dodge(.7)) +
     scale_fill_manual(values = c("#e34a33", "#fc8d59", "#fdd49e", "#8dd3c7", "#80b1d3", "#bebada")) +
     #rev(RColorBrewer::brewer.pal(4,'Blues'))
     #scale_fill_hue(direction = -1, h.start = 90) +
@@ -182,55 +186,27 @@ p_runtime <- plot_mapping_performance(runtime_mean, 11, "Runtime (h)")
 
 
 #### Genes per cell ####
-
-dir_test <- dir("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/Cardiac", recursive = T)
-
-seurat_object_list <- list()
-data_names <- c("Cardiac", "Endothelial", "pbmc_10x")#
-for (j in data_names){
-  if (j =="Cardiac"){
-    sample_names <- paste(c("MF1701"), c(0,3:8), sep = "")
-  } else if(j=="Endothelial"){
-    sample_names=c("Brain","Colon","Heart","Kidney","Liver","Lung","muscle_EDL","muscle_Soleus","Small_Intestine","Spleen","Testis")
-  } else if(j == "pbmc_10x"){
-    sample_names <- paste(c("sample"), c(1:4), sep = "")
-  }
-  print(j)
-  for ( i in sample_names){
-    if (j %in% c("Endothelial", "pbmc_10x")){
-      i <- paste("results_filtered_anno", i, sep = "/")
-    }
-  print(i)
-  print(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/alevin/"))
-  alevin_raw <- import_alevin_mat(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/alevin/"), i, "alevin/quants_mat_cols.txt")
-  seurat_object_list[[paste(j,i, "alevin", sep = "__")]] <- CreateSeuratObject(alevin_raw)
-  
-  cellranger_raw <- Read10X(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/cellranger/", i, "/outs/emptyDrops_feature_bc_matrix/"))
-  seurat_object_list[[paste(j,i, "cellranger", sep = "__")]] <- CreateSeuratObject(cellranger_raw)
-  
-  if(j %in% c("Cardiac", "pbmc_10x")){
-    print(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/cellranger4/", i, "/outs/emptyDrops_feature_bc_matrix/"))
-    if (j=="pbmc_10x"){
-      i <- strsplit(i, "/")[[1]][2]
-    }
-    cellranger4_raw <- Read10X(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/cellranger4/", i, "/outs/emptyDrops_feature_bc_matrix/"))
-    seurat_object_list[[paste(j,i, "cellranger4", sep = "__")]] <- CreateSeuratObject(cellranger4_raw)
-    print("cellranger5")
-    cellranger5_raw <- Read10X(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/cellranger5/", i, "/outs/emptyDrops_feature_bc_matrix/"))
-    seurat_object_list[[paste(j,i, "cellranger5", sep = "__")]] <- CreateSeuratObject(cellranger5_raw)
-    if (j=="pbmc_10x"){
-      i <- paste("results_filtered_anno", i, sep = "/")
-    }
-  }
-  print("kallisto")
-  kallisto_raw <- Read10X(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/kallisto/", i, "/counting/filtered_matrix_emptyDrops/"))
-  seurat_object_list[[paste(j,i, "kallisto", sep = "__")]] <- CreateSeuratObject(kallisto_raw)
-  print("starsolo")
-  starsolo_raw <- Read10X(paste0("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/", j, "/starsolo/", i, "/Solo.out/Gene/filtered_matrix_emptyDrops/"))
-  seurat_object_list[[paste(j,i, "starsolo", sep = "__")]] <- CreateSeuratObject(starsolo_raw)
+mapper_names <- c(cellranger = "Cell ranger", cellranger4 = "Cell Ranger 4", cellranger5 = "Cell Ranger 5", starsolo = "STARsolo", alevin = "Alevin", kallisto = "Kallisto")
+# create dataset for ploting
+create_plot_data <- function(data){
+  data_melt <- melt(data)
+  meta_data <- do.call(rbind, strsplit(data_melt$L1, "__"))
+  #meta_data[,2] <- do.call(rbind, strsplit(meta_data[,2], "results_filtered_anno/"))[,2]
+  data_melt <- cbind(data_melt, meta_data)
+  print(head(data_melt))
+  colnames(data_melt) <- c("value", "L1", "Sample", "Mapper", "Dataset")
+  print(head(data_melt))
+  data_mean <- aggregate(value ~ Dataset + Mapper, data = data_melt, mean)
+  data_sem <- aggregate(value ~ Dataset + Mapper, data = data_melt, sem)
+  data_mean$sem <- data_sem$value
+  # make data pretty foro plotting
+  colnames(data_mean)[grep("value", colnames(data_mean))] <- "mean"
+  data_mean$Dataset <- factor(data_mean$Dataset, levels = c("PBMC", "Endothelial", "Cardiac"))
+  data_mean$Mapper <- factor(data_mean$Mapper, levels = names(mapper_names))
+  levels(data_mean$Mapper) <- unname(mapper_names[levels(data_mean$Mapper)])
+  #print(str(data_mean))
+  return(data_mean)
 }
-}
-saveRDS(seurat_object_list, "/media/Storage/additional_datasets/cellranger_4_5.rds")
 
 datasets <- c("pbmc_10x", "Cardiac")
 tools <- c("cellranger4")
@@ -245,48 +221,21 @@ genes_per_cell <- lapply(pbmc_cardiac_endo, function(x){
 })
 
 genes_per_cell_test <- create_plot_data(genes_per_cell)
-saveRDS(genes_per_cell, "/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/genes_per_cell.rds")
+#saveRDS(genes_per_cell, "/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/genes_per_cell.rds")
+#genes_per_cell_old <- readRDS("/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/genes_per_cell.rds")
 p_gene_per_cell <- plot_mapping_performance(genes_per_cell_test, 2500, "Genes per cell")
 
-
+#### Cell count ####
 ncells <- lapply(pbmc_cardiac_endo, function(x){
   ncol(x)
 })
-saveRDS(ncells, "/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/ncells.rds")
+#saveRDS(ncells, "/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/ncells.rds")
 
-# create dataset for ploting
-create_plot_data <- function(data){
-  data_melt <- melt(data)
-  meta_data <- do.call(rbind, strsplit(data_melt$L1, "__"))
-  #meta_data[,2] <- do.call(rbind, strsplit(meta_data[,2], "results_filtered_anno/"))[,2]
-  data_melt <- cbind(data_melt, meta_data)
-  colnames(data_melt) <- c("value", "L1", "Dataset", "Sample", "Mapper")
-  data_mean <- aggregate(value ~ Dataset + Mapper, data = data_melt, mean)
-  data_sem <- aggregate(value ~ Dataset + Mapper, data = data_melt, sem)
-  data_mean$sem <- data_sem$value
-  print((data_mean))
-  # make data pretty
-  colnames(data_mean)[3] <- "mean"
-  levels(data_mean$Dataset)[3] <- "PBMC"
-  data_mean$Dataset <- factor(data_mean$Dataset, levels = c("PBMC", "Endothelial", "Cardiac"))
-  levels(data_mean$Mapper) <- c("Alevin", "Cell Ranger", "Cell Ranger v4", "Cell Ranger v5", "Kallisto", "STARsolo")
-  data_mean$Mapper <- factor(data_mean$Mapper, levels = c("Cell Ranger", "Cell Ranger v4", "Cell Ranger v5", "STARsolo", "Alevin", "Kallisto"))
-  print(str(data_mean))
-  return(data_mean)
-}
 ncells_test <- create_plot_data(ncells)
-
 p_ncell <- plot_mapping_performance(ncells_test, 10000,"Cell count")
 
 
-cellranger4_raw <- Read10X("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/Cardiac/cellranger4/MF17010/outs/emptyDrops_feature_bc_matrix/")
-    CreateSeuratObject(cellranger4_raw)
-    cellranger5_raw <- Read10X("/media/Helios_scStorage/Ralf/Benchmark/MappedReads/Cardiac/cellranger5/MF17010/outs/emptyDrops_feature_bc_matrix/")
-    CreateSeuratObject(cellranger5_raw)
-
-
 #### mapping rate ####
-
 mapp_rate_mouse_atlas <- as.list(read.table("/media/Storage/additional_datasets/intermediate_data/figure1/mapp_rate_mouse_atlas.tsv",header = T,sep = "\t"))
 mouseatlas_map <- melt(mapp_rate_mouse_atlas)
 mouseatlas_map$dataset <- "Endothelial"
@@ -716,102 +665,10 @@ ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots/second_submission_plots/Mai
 ```
 
 
-Cluster together all 4 samples per tool with an anchoring to get a better clustering
-```{r PBMC Integration}
-library(tictoc)
-#results_dir <- "/media/Storage/additional_datasets/plots/pbmc/"
-results_dir <- "/media/Storage/additional_datasets/mouse_cell_atlas/"
-tissue <- c("Heart","Kidney","Liver","Brain","Colon","Lung","muscle_EDL","muscle_Soleus","Small_Intestine","Spleen","Testis")
-samples <- c("sample1","sample2","sample3","sample4","sample5","sample6","sample7","sample8")
-sample_names <- apply(expand.grid(tissue,samples),1,paste,collapse="")
-
-#sample_names <- c("sample1", "sample2","sample3", "sample4")
-tools <- c("cellranger","starsolo","alevin","kallisto")#,"starsolo","alevin","kallisto"
-
-#clustered_objects_unfiltered <- list()
-clustered_objects <- list()
-cluster_plot <- list()
-#cluster_plot_unfiltered <- list()
-tic()
-for (k in tools){
- print(k)
-  seurat_data <- list()
-  for (j in sample_names){
-    
-    filtered_data <- filtered_data_seurat_obj_filtered_mouse_atlas[[paste(j,k,"results_filtered_anno",sep="__")]]
-    filtered_data <- RenameCells(filtered_data,add.cell.id = paste(j,sep="_"))
-    #colnames(filtered_data) <- paste(colnames(filtered_data),j,k,sep="_")
-    seurat_data[[paste(k,j,sep="_")]] <- subset(filtered_data,subset=nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 10)
-  }
-  rm(filtered_data)
-  rm(filtered_data_seurat_obj_filtered_mouse_atlas)
-  # Data Integration
-  seurat_data <- lapply(seurat_data,function(x) x <- SCTransform(x))
-
-  seurat_features <- SelectIntegrationFeatures(object.list = seurat_data,nfeatures = 2500)
-  seurat_data <- PrepSCTIntegration(object.list = seurat_data,anchor.features = seurat_features)
-
-  seurat_anchors <- FindIntegrationAnchors(object.list = seurat_data,normalization.method = "SCT",anchor.features = seurat_features)
-  rm(seurat_data)
-  seurat_integrated <- IntegrateData(anchorset = seurat_anchors, normalization.method = "SCT")
-
-  seurat_integrated <- RunPCA(seurat_integrated)
-  ElbowPlot(seurat_integrated)
-  seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:10)
-  seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:10)
-  set_resolution <- 0.51
- #   if (k=="Cellranger"){
- #   set_resolution <- 0.125
- # }else if((k=="Star_solo") | (k=="Kallisto")){
- #   set_resolution <- 0.12
- # }else if (k=="Alevin"){
- #   set_resolution <- 0.12
-#}
-  seurat_integrated <- FindClusters(seurat_integrated,resolution = set_resolution)
-  Project(seurat_integrated) <- k
-  clustered_objects[[k]] <- seurat_integrated # Save object for further anaylsis
-
-}
-
-saveRDS(clustered_objects,"/media/ATLAS_NGS_storage/RalfSB/Results_Rosenthal/clustered_objects_05_06_20.Rds")
-saveRDS(clustered_objects,paste0(results_dir,"pbmc_integrated.Rds"))
-saveRDS(cluster_plot,paste0(results_dir,"pbmc_integrated_plots.Rds"))
-#clustered_objects <- readRDS("/media/ATLAS_NGS_storage/RalfSB/Results_Rosenthal/clustered_objects_new_kallisto.Rds")
 
 
-tools <- c("cellranger","starsolo","alevin","kallisto")#,"starsolo","alevin","kallisto"
-cluster_plot <- list()
-for (k in tools){
-  cluster_plot[[k]] <- DimPlot(clustered_objects[[k]],reduction = "umap", label = T)
-}
-
-
-p_umap_pbmc_comb <- ggarrange(cluster_plot$cellranger,cluster_plot$starsolo,cluster_plot$alevin,cluster_plot$kallisto,ncol = 2, nrow = 2, labels = "AUTO")
-ggsave("/media/Storage/additional_datasets/plots/pbmc/other/umap_combined.svg", p_umap_pbmc_comb, device = "svg",height = 10,width = 11)
-
-
-DimPlot(clustered_objects[[k]],group.by = "orig.ident", label = T)
-```
-
-
-
-Cluster together all 11 samples per tool with an anchoring to get a better clustering
-```{r Cardiac Integration}
-results_dir <- "/media/Helios_scStorage/Ralf/MouseHom_AMI/Results_Rosenthal/"
-sample_names <- c("MF17010", "MF17013","MF17014", "MF17015", "MF17016", "MF17017", "MF17018")
-tools <- c("Cellranger","Star_solo","Alevin","Kallisto")#
-
-
-filtered_data_seurat_obj <- readRDS("/media/Storage/home_backup/data/imported_data_un_filtered.RDS")
-filtered_data_seurat_obj <- filtered_data_seurat_obj[grep("__filtered",names(filtered_data_seurat_obj))]
-
-seurat_data <- lapply(filtered_data_seurat_obj, function(x) {
-  x <- RenameCells(x, add.cell.id = strsplit(Project(x),"__")[[1]][2])
-  subset(x, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 10)
-})
-
-seurat_data <- lapply(seurat_data, function(x) x <- SCTransform(x))
-
+Cluster together all samples per tool with the seurat anchoring
+```{r Cardiac and PBMC Integration}
 integrate_per_mapper <- function(data_m, project_name, dims, resolution){
   seurat_features <- SelectIntegrationFeatures(object.list = data_m, nfeatures = 2500)
   data_m <- PrepSCTIntegration(object.list = data_m, anchor.features = seurat_features)
@@ -829,6 +686,24 @@ integrate_per_mapper <- function(data_m, project_name, dims, resolution){
   seurat_integrated
 }
 
+
+#### Cardiac ####
+results_dir <- "/media/Helios_scStorage/Ralf/MouseHom_AMI/Results_Rosenthal/"
+sample_names <- c("MF17010", "MF17013","MF17014", "MF17015", "MF17016", "MF17017", "MF17018")
+tools <- c("cellranger", "cellranger5","starsolo","alevin","kallisto")
+
+
+pbmc_cardiac_endo <- readRDS("/media/Storage/additional_datasets/pbmc_cardiac_endo.rds")
+cardiac <- pbmc_cardiac_endo[grep("Cardiac", names(pbmc_cardiac_endo))]
+
+# Workflow integration with sctransform after seurat tutorial
+seurat_data <- lapply(cardiac, function(x) {
+  x <- RenameCells(x, add.cell.id = strsplit(Project(x),"__")[[1]][2])
+  subset(x, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 10)
+})
+
+seurat_data <- lapply(seurat_data, function(x) x <- SCTransform(x))
+
 integrated_data <- lapply(tools, function(x) {
   integrate_per_mapper(seurat_data[grep(x, names(seurat_data))], paste("Cardiac_integration", x), 20, 0.15)
 })
@@ -838,6 +713,26 @@ integrated_data <- lapply(integrated_data, function(x) {
 })
 
 saveRDS(integrated_data, "/media/Helios_scStorage/Ralf/Benchmark/MappedReads/Cardiac/cardiac_integrated.rds")
+
+
+#### PBMC ####
+sample_names <- c("sample1", "sample2","sample3", "sample4")
+
+cardiac <- pbmc_cardiac_endo[grep("PBMC", names(pbmc_cardiac_endo))]
+
+# workflow integration with sctransform after seurat tutorial
+seurat_data <- lapply(cardiac, function(x) {
+  x <- RenameCells(x, add.cell.id = strsplit(Project(x),"__")[[1]][2])
+  subset(x, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 10)
+})
+
+seurat_data <- lapply(seurat_data, function(x) x <- SCTransform(x))
+
+integrated_data <- lapply(tools, function(x) {
+  integrate_per_mapper(seurat_data[grep(x, names(seurat_data))], paste("Cardiac_integration", x), 20, 0.15)
+})
+
+saveRDS(integrated_data, "/media/Helios_scStorage/Ralf/Benchmark/MappedReads/Cardiac/pbmc_integrated.rds")
 ```
 
 
@@ -929,11 +824,13 @@ new_clus_id<- list(
   cellranger5_celltypes = c("0"="T-cells", "1"="T-cells", "2"="Monocytes", "3"="T-cells2", "4"="B-cells","5"="B-cells","6"="NK-cells", "7"="T-cells2", "8"= "NK-cells", "9"="unknown")
 )
 
+# rename celltypes
 for (i in 1:5){
   pbmc_integrated[[i]]$celltypes <- pbmc_integrated[[i]]$seurat_clusters
   levels(pbmc_integrated[[i]]$celltypes) <- new_clus_id[[i]]
 }
 
+# remove small cluster
 pbmc_integrated <- lapply(pbmc_integrated,function(x){
   Idents(x) <- "celltypes"
   x <- x[,!(x$celltypes %in% c("Endothelial cells", "unknown"))]

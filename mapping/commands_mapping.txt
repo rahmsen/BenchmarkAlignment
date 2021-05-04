@@ -39,14 +39,14 @@
             1.2.2.1 Create Ref Genome for Cellranger 4 and 5
             #v4
             #human
-              references/create_reference_GRCh38_97.sh
+              create_reference_GRCh38_97.sh
             #mouse
-              references/create_ref_mouse_v4.sh
+              create_ref_mouse_v4.sh
             #v5
             #human
-              references/create_reference_GRCh38_97.sh
+              create_reference_GRCh38_97.sh
             #mouse
-              references/create_ref_mouse_v5.sh
+              create_ref_mouse_v5.sh
 		1.2.3 Create Index for STARsolo
 			# Human
 				STAR --runMode genomeGenerate \
@@ -71,7 +71,6 @@
 				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3)}' Homo_sapiens.GRCh38.97.cellranger_filtered.gtf | sort > transcript_names_gtf_filtered.txt
 
 				#Following commands r run within R
-				    library(seqinr)
 					transcriptome.fa <- read.fasta("Homo_sapiens.GRCh38.97.cdna_ncrna.fa",seqtype = "DNA")
 					transcript.names <- read.table("transcript_names_gtf_filtered.txt",stringsAsFactors = F)
 					filtered_transcriptome <- transcriptome.fa[names(transcriptome.fa) %in% transcript.names$V1]
@@ -96,7 +95,7 @@
 				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3)}' Mus_musculus.GRCm38.97.cellranger_filtered.gtf | sort > transcript_names_gtf_filtered.txt
 
 				#Following commands r run within R
-					library(seqinr)
+					library()
 					transcriptome.fa <- read.fasta("Mus_musculus.GRCm38.cdna_ncrna.fa",seqtype = "DNA")
 					transcript.names <- read.table("transcript_names_gtf_filtered.txt",stringsAsFactors = F)
 					filtered_transcriptome <- transcriptome.fa[names(transcriptome.fa) %in% transcript.names$V1]
