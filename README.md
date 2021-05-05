@@ -10,4 +10,4 @@ commands_mapping.txt in mapping/ contains commands to execute the mapping. The f
 
 ## Creating Figures
 
-make_figures.txt creates the figures that are included in the paper.
+make_figures.rmd creates the figures that are included in the paper.
