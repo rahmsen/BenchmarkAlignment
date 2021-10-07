@@ -57,7 +57,7 @@ for sampledir in ${SAMPLEDIRS[*]}; do
 	#run command
 	#Alignement
 	echo "Run STARsolo for ${SAMPLENAME}"
-	echo "	STAR --soloType Droplet \
+	echo "/opt/STAR-2.7.3a/bin/Linux_x86_64_static/STAR --soloType Droplet \
 		--soloCBwhitelist $white \
 		--genomeDir $index \
 		--readFilesIn <(gunzip -c $READ2) <(gunzip -c $READ1) \
@@ -68,7 +68,7 @@ for sampledir in ${SAMPLEDIRS[*]}; do
 		--outFileNamePrefix=${outFolderSample} 2> ${outFolderSample}${SAMPLENAME}outLog.log ;" >> $outFolder"commands_STARsolo.txt"
 	
 
-	STAR --soloType Droplet \
+	{ time /opt/STAR-2.7.3a/bin/Linux_x86_64_static/STAR --soloType Droplet \
 		--soloCBwhitelist $white \
 		--genomeDir $index \
 		--readFilesIn <(gunzip -c $READ2) <(gunzip -c $READ1) \
@@ -76,13 +76,11 @@ for sampledir in ${SAMPLEDIRS[*]}; do
 		--outSAMattributes NH HI AS nM CR CY UR UY CB UB GX GN \
 		--soloUMIlen $umi \
 		--runThreadN 16 \
-		--outFileNamePrefix=${outFolderSample} 2> ${outFolderSample}${SAMPLENAME}outLog.log ;
+		--outFileNamePrefix=${outFolderSample} 2> ${outFolderSample}${SAMPLENAME}outLog.log ; } 2> ${SAMPLENAME}runtime.txt
     
 	let i++
 
 done
-
-
 
 
 

@@ -57,26 +57,28 @@ for sampledir in ${SAMPLEDIRS[*]}; do
 	#run command
 	#Alignement 
 	echo "Run Alevin for ${SAMPLENAME}"
-	echo "/opt/salmon-latest_linux_x86_64/bin/salmon alevin \
+	echo "./software/salmon-latest_linux_x86_64/bin/salmon alevin \
 		-l ISR \
 		-1 $READ1 \
 		-2 $READ2 \
 		$technology \
 		-p 16 \
+        --forceCells 10000 \
 		-i $index \
 		-o ${outFolderSample} \
 		--tgMap ${txp} 2> ${outFolderSample}${SAMPLENAME}outLog.log ;" >>  $outFolder"commands_Alevin.txt"
 	
 
-	/opt/salmon-latest_linux_x86_64/bin/salmon alevin \
+	{ time ./software/salmon-latest_linux_x86_64/bin/salmon alevin \
 		-l ISR \
 		-1 $READ1 \
 		-2 $READ2 \
 		$technology \
 		-p 16 \
+        --forceCells 10000 \
 		-i $index \
 		-o ${outFolderSample} \
-		--tgMap ${txp} 2> ${outFolderSample}${SAMPLENAME}outLog.log ;
+		--tgMap ${txp} 2> ${outFolderSample}${SAMPLENAME}outLog.log ; } 2> ${SAMPLENAME}runtime.txt
 
 	let i++
 
