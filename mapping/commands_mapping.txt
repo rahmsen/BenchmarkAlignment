@@ -302,7 +302,7 @@ mkdir ${app_dir}
 #	3.2.3 PBMC (Human)
 		bash ${github_path}mapping/MapSTARsolo.sh -s sample1,sample2,sample3,sample4 \
 		-d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
-		-i ${main_outpath}references/starsolo/mouse/index_unfiltered \
+		-i ${main_outpath}references/starsolo/human/index_unfiltered \
 		-w ${whitelist_dir}3M-february-2018.txt \
 		-u 12 -o ${main_outpath}MappedReads/starsolo/pbmc/
 
@@ -325,7 +325,7 @@ mkdir ${app_dir}
 #	3.3.3 PBMC (Human)
 		bash ${github_path}mapping/MapAlevin.sh -s sample1,sample2,sample3,sample4 \
         -d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
-		-i ${main_outpath}references/alevin/mouse/salmon_index_filtered \
+		-i ${main_outpath}references/alevin/human/salmon_index_filtered \
 		-o ${main_outpath}/MappedReads/Alevin/pbmc/ \
 		-t --chromiumV3 -x /media/ATLAS_Genomes_Annotations/human/GRCh38.97/txp2gene.tsv
 # unfiltered
@@ -345,7 +345,7 @@ mkdir ${app_dir}
 #	3.3.3 PBMC (Human)
 		bash ${github_path}mapping/MapAlevin.sh -s sample1,sample2,sample3,sample4 \
         -d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
-		-i ${main_outpath}references/alevin/mouse/salmon_index_unfiltered \
+		-i ${main_outpath}references/alevin/human/salmon_index_unfiltered \
 		-o ${main_outpath}/MappedReads/Alevin/pbmc/ \
 		-t --chromiumV3 -x /media/ATLAS_Genomes_Annotations/human/GRCh38.97/txp2gene.tsv
 

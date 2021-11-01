@@ -1,0 +1,258 @@
+github_path=/media/Helios_scStorage/Ralf/Benchmark/Gigascience/git/BenchmarkAlignment/
+main_outpath=/media/Storage/Benchmark_test2/
+threads=16
+app_dir=${main_outpath}software/
+whitelist_dir=${app_dir}cellranger/cellranger-6.0.2/lib/python/cellranger/barcodes/
+
+cd $main_outpath
+mkdir MappedReads MappedReads/pbmc_10x/ MappedReads/pbmc_10x/alevin-fry/ MappedReads/pbmc_10x/cellranger6/ MappedReads/pbmc_10x/starsolo/ MappedReads/pbmc_10x/alevin/ MappedReads/pbmc_10x/kallisto/ references fastqs fastqs/pbmc_10x
+
+#1 Download data
+cd ${main_outpath}fastqs/pbmc_10x
+curl -O https://s3-us-west-2.amazonaws.com/10x.files/samples/cell-exp/3.0.2/5k_pbmc_v3/5k_pbmc_v3_fastqs.tar
+tar -xf 5k_pbmc_v3_fastqs.tar
+mkdir 5k_pbmc_v3_fastqs/sample1 5k_pbmc_v3_fastqs/sample2 5k_pbmc_v3_fastqs/sample3 5k_pbmc_v3_fastqs/sample4
+mv 5k_pbmc_v3_fastqs/*L001_R*_001.fastq.gz 5k_pbmc_v3_fastqs/sample1/
+mv 5k_pbmc_v3_fastqs/*L002_R*_001.fastq.gz 5k_pbmc_v3_fastqs/sample2/
+mv 5k_pbmc_v3_fastqs/*L003_R*_001.fastq.gz 5k_pbmc_v3_fastqs/sample3/
+mv 5k_pbmc_v3_fastqs/*L004_R*_001.fastq.gz 5k_pbmc_v3_fastqs/sample4/
+
+# 2 Download & install Software
+mkdir ${app_dir}
+#	2.1 Cellranger
+		mkdir ${app_dir}cellranger
+		cd ${app_dir}cellranger
+		curl -o cellranger-6.0.2.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-6.0.2.tar.gz?Expires=1635490832&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci02LjAuMi50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE2MzU0OTA4MzJ9fX1dfQ__&Signature=b2mcBCCMdb0oJ9-mIJXgZjWqXgemTxtBIgDScCgzZXZJ~Ia-3HDmU8RwjR1CU7fLFfJvV3Nnm~jUMMtG3UamjnSht7hAh7s0YZ2B96DN4jCquN1M2nJEl~MtbN2loxZ3va-E6pS1CylqITLs5zl~2d241PeyHM~MDym~Kh9pckmcdbq8~G-IKM4if8~Am8XFNTTcJrgLW8fexgwp5aYn1WxKlvov4aQPAzvYVc6Me37ptisphq3f5zTSFFQVbk1M5ipINBFo5t0VbLnQOsS6e5vxbnJ~jwk5PI-tO3vVZct~8jOE-26RM1aoL-pUHcQbwJQ2moi-KKSABtjsGxtiig__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+		tar -xzf cellranger-6.0.2.tar.gz
+		gunzip ${whitelist_dir}3M-february-2018.txt.gz
+		export PATH=${app_dir}cellranger/cellranger-6.0.2/:$PATH
+
+	#2.2 STARsolo
+		mkdir ${app_dir}starsolo
+		cd ${app_dir}starsolo
+		wget https://github.com/alexdobin/STAR/archive/2.7.3a.tar.gz
+		tar -xzf 2.7.3a.tar.gz
+		export PATH=${app_dir}starsolo/STAR-2.7.3a/bin/Linux_x86_64_static/:$PATH
+
+	#2.3 Alevin / Salmon
+		mkdir ${app_dir}alevin
+		cd ${app_dir}alevin
+		wget https://github.com/COMBINE-lab/salmon/releases/download/v1.1.0/salmon-1.1.0_linux_x86_64.tar.gz
+		tar -xzf salmon-1.1.0_linux_x86_64.tar.gz
+		export PATH=${app_dir}alevin/salmon-latest_linux_x86_64/bin/:$PATH
+
+	#2.4 Alevin-fry
+		mkdir ${app_dir}alevin_fry
+		cd ${app_dir}alevin_fry
+		curl https://sh.rustup.rs -sSf | sh
+		source $HOME/.cargo/env
+		cargo install alevin-fry --version 0.4.0
+
+	#2.5 Kalisto
+		mkdir ${app_dir}kallisto
+		cd ${app_dir}kallisto
+		wget https://github.com/pachterlab/kallisto/releases/download/v0.46.1/kallisto_linux-v0.46.1.tar.gz
+		tar -vxzf ${app_dir}kallisto/kallisto_linux-v0.46.1.tar.gz
+		export PATH=${app_dir}kallisto/kallisto/:$PATH
+
+		wget https://github.com/BUStools/bustools/releases/download/v0.39.3/bustools_linux-v0.39.3.tar.gz
+        tar -vxzf ${app_dir}kallisto/bustools_linux-v0.39.3.tar.gz
+		export PATH=${app_dir}kallisto/bustools/:$PATH
+        
+
+# 2. Create reference genomes
+#	2.1 Download all files
+#		2.1.1. Human	
+			#Ensembl
+			mkdir ${main_outpath}references/human/
+	 		cd ${main_outpath}references//human/
+			curl -o - ftp://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz | gunzip >Homo_sapiens.GRCh38.dna.primary_assembly.fa
+			curl -o - ftp://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz | gunzip > Homo_sapiens.GRCh38.cdna.all.fa
+			curl -o - ftp://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz | gunzip > Homo_sapiens.GRCh38.ncrna.fa
+			curl -o - ftp://ftp.ensembl.org/pub/release-97/gtf/homo_sapiens/Homo_sapiens.GRCh38.97.gtf.gz | gunzip > Homo_sapiens.GRCh38.97.gtf
+
+
+#	2.2 Filter Genes and create Index
+#		2.2.2 Create Ref Genome Cellranger
+        # 2.2.2.1 Create Ref Genome for Cellranger 6
+            #human
+            mkdir ${main_outpath}references/human/cellranger/
+            cd ${main_outpath}references/human/cellranger/
+            bash ${github_path}references/create_reference_GRCh38_97.sh
+
+            cellranger mkgtf ../Homo_sapiens.GRCh38.97.gtf ../Homo_sapiens.GRCh38.97_cellranger_filtered.gtf \
+            --attribute=gene_biotype:protein_coding \
+            --attribute=gene_biotype:lncRNA \
+            --attribute=gene_biotype:IG_LV_gene \
+            --attribute=gene_biotype:IG_V_gene \
+            --attribute=gene_biotype:IG_V_pseudogene \
+            --attribute=gene_biotype:IG_D_gene \
+            --attribute=gene_biotype:IG_J_gene \
+            --attribute=gene_biotype:IG_J_pseudogene \
+            --attribute=gene_biotype:IG_C_gene \
+            --attribute=gene_biotype:IG_C_pseudogene \
+            --attribute=gene_biotype:TR_V_gene \
+            --attribute=gene_biotype:TR_V_pseudogene \
+            --attribute=gene_biotype:TR_D_gene \
+            --attribute=gene_biotype:TR_J_gene \
+            --attribute=gene_biotype:TR_J_pseudogene \
+            --attribute=gene_biotype:TR_C_gene
+
+
+		2.2.3 Create Index for STARsolo
+			# Human
+			mkdir ${main_outpath}references/human/starsolo/
+			mkdir ${main_outpath}references/human/starsolo/index_filtered
+            cd ${main_outpath}references/human/starsolo/
+
+			STAR --runMode genomeGenerate \
+			--runThreadN $threads \
+			--genomeDir ${main_outpath}references/human/starsolo/index_filtered \
+			--sjdbGTFfile ../Homo_sapiens.GRCh38.97_cellranger_filtered.gtf \
+			--genomeFastaFiles ../Homo_sapiens.GRCh38.dna.primary_assembly.fa
+
+
+	#		2.2.4 Create Index for Salmon
+#			2.2.4.1 Human
+				mkdir ${main_outpath}references/human/alevin/
+            	cd ${main_outpath}references/human/alevin/
+				#create filtered fasta transcriptome file
+				cat ../Homo_sapiens.GRCh38.cdna.all.fa ../Homo_sapiens.GRCh38.ncrna.fa > ../Homo_sapiens.GRCh38.cdna_ncrna.fa
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3)}' ../Homo_sapiens.GRCh38.97_cellranger_filtered.gtf | sort > transcript_names_gtf_filtered.txt
+
+				Rscript --vanilla ${github_path}mapping/filter_fasta_alevin.R
+
+				# get genome targets
+				# After https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/
+				grep "^>" ../Homo_sapiens.GRCh38.dna.primary_assembly.fa | cut -d " " -f 1 > decoys.txt
+				sed -i.bak -e 's/>//g' decoys.txt
+				#combine transcript and genome (Transcript targets before Genome targets)
+				cat ../Homo_sapiens.GRCh38.cdna_ncrna_filtered.fa ../Homo_sapiens.GRCh38.dna.primary_assembly.fa > gentrome.fa
+				#create index
+				salmon index -t gentrome.fa -d decoys.txt -p 16 -i salmon_index_filtered
+
+				#create transcript to gene file (txp)
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3) "\t" \
+				substr($10,2,length($10)-3) "." substr($12,2,length($12)-3)}' \
+				../Homo_sapiens.GRCh38.97_cellranger_filtered.gtf > txp2gene.tsv
+
+
+	        #2.2.5 Create Index for Alevin-fry
+	        mkdir ${main_outpath}references/human/alevin-fry/
+            cd ${main_outpath}references/human/alevin-fry/
+	        # Human
+				Rscript --vanilla ${github_path}mapping/create_splici_index.R \
+                    ${main_outpath}references/human/cellranger/GRCh38_97/ \
+                    ${main_outpath}references/human/alevin-fry/ \
+                    ${github_path}mapping/
+
+                salmon index \
+                    -t ${main_outpath}references/alevin-fry/human/filtered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
+                    -i ${main_outpath}references/alevin-fry/human/filtered/grch38_97_bench_splici_idx \
+                    -p $threads
+
+
+
+#		2.2.6 Create Index for Kallisto
+#			2.2.6.1 Human
+                mkdir ${main_outpath}references/human/kallisto/
+            	cd ${main_outpath}references/human/kallisto/
+				#create transcript to gene list for kallisto
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3) "\t" \
+				 substr($10,2,length($10)-3)  "." substr($12,2,length($12)-3) "\t" substr($18,2,length($18)-3)}' \
+				 ../Homo_sapiens.GRCh38.97_cellranger_filtered.gtf > txp_kallisto.txt
+				#Run indexing
+				kallisto index -i kallisto_index ../Homo_sapiens.GRCh38.cdna_ncrna_filtered.fa
+
+
+# 3. Run Mapping
+sample_paths=$(ls -d ${main_outpath}fastqs/pbmc_10x/5k_pbmc_v3_fastqs/sample*/ | sed -z 's/\n/,/g;s/,$//')
+#	3.1 Run Mapping with Cell Ranger 6
+#	3.1.3 PBMC (Human)
+        mkdir ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_filtered_anno/
+        cd ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_filtered_anno/
+
+		bash ${github_path}mapping/MapCellranger6.sh -s sample1,sample2,sample3,sample4 \
+		-d $sample_paths \
+		-i ${main_outpath}references/human/cellranger/GRCh38_97/ -t 16
+
+
+# 3.2 Run Mapping with STARsolo
+#	3.2.3 PBMC (Human)
+        mkdir ${main_outpath}MappedReads/pbmc_10x/starsolo/results_filtered_anno/
+        cd ${main_outpath}MappedReads/pbmc_10x/starsolo/results_filtered_anno/
+
+		bash ${github_path}mapping/MapSTARsolo.sh -s sample1,sample2,sample3,sample4 \
+		-d $sample_paths \
+		-i ${main_outpath}references/human/starsolo/index_filtered/ \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-u 12 -o ${main_outpath}MappedReads/pbmc_10x/starsolo/results_filtered_anno/
+
+
+#3.3. Run Mapping with Alevin
+#	3.3.3 PBMC (Human)
+        mkdir ${main_outpath}MappedReads/pbmc_10x/alevin/results_filtered_anno/
+        cd ${main_outpath}MappedReads/pbmc_10x/alevin/results_filtered_anno/
+
+		bash ${github_path}mapping/MapAlevin.sh -s sample1,sample2,sample3,sample4 \
+        -d $sample_paths \
+		-i ${main_outpath}references/human/alevin/salmon_index_filtered/ \
+		-o ${main_outpath}MappedReads/pbmc_10x/alevin/results_filtered_anno/ \
+		-t --chromiumV3 -x ${main_outpath}references/human/alevin/txp2gene.tsv
+
+
+
+    #3.4 Alevin-fry
+    mkdir ${main_outpath}MappedReads/Cardiac/alevin-fry/
+#		3.3.3 PBMC (Human)
+            mkdir ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/
+            cd ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/
+
+            bash ${github_path}/mapping/MapAlevin-fry.sh \
+            -s sample1,sample2,sample3,sample4 \
+            -d $sample_paths \
+            -i ${main_outpath}references/human/alevin_fry/ \
+            -o ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/ \
+            -t --chromiumV3 -x 16
+
+
+# 3.4. Run Kallisto
+cd $main_outpath
+
+	#3.4.3 PBMC (Human)
+	    mkdir ${main_outpath}MappedReads/pbmc_10x/kallisto/results_filtered_anno/
+        cd ${main_outpath}MappedReads/pbmc_10x/kallisto/results_filtered_anno/
+
+		bash ${github_path}mapping/MapKallisto.sh -s sample1,sample2,sample3,sample4 \
+		-d $sample_paths \
+		-i ${main_outpath}references/human/kallisto/kallisto_index \
+		-o ${main_outpath}MappedReads/pbmc_10x/kallisto/results_filtered_anno/ \
+		-c 10xv3 -t 16 \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-x ${main_outpath}/references/human/kallisto/txp_kallisto.txt
+
+
+
+#4.2.3. Filter by Empty Drops Method
+#PBMC
+# Cell Ranger 6
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_filtered_anno/*/outs/`; do
+    { time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ ${i} "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+    mv ${i}filtered_matrix_emptyDrops/features.tsv.gz ${i}filtered_matrix_emptyDrops/features_backup.tsv.gz &&\
+    cp ${i}raw/features.tsv.gz ${i}filtered_matrix_emptyDrops/features.tsv.gz
+done
+
+
+# STARsolo
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/starsolo/results_filtered_anno/sample4/Solo.out/Gene/`; do
+    gzip ${i}raw/barcodes.tsv ${i}raw/features.tsv ${i}raw/matrix.mtx &&\
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw/ $i "starsolo" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}filtered_matrix_emptyDrops/features.tsv.gz ${i}filtered_matrix_emptyDrops/features_backup.tsv.gz &&\
+	cp ${i}raw/features.tsv.gz ${i}filtered_matrix_emptyDrops/features.tsv.gz
+done
+
+# Kallisto
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/kallisto/results_filtered_anno/*/counting/`; do 
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt
+done 
+
