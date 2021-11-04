@@ -18,14 +18,14 @@ create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -
 
 4. Run script mapping.sh
 
-`code`
+
 create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/
-`code`
+
 
 5. Run commands in R/Rstudio to create alevin-fry index:
 
 `code`
-# Scripts from https://github.com/COMBINE-lab/usefulaf
+### Scripts from https://github.com/COMBINE-lab/usefulaf
 			Rscript --vanilla ${github_path}mapping/create_splici_index.R \
                 ${main_outpath}references/human/cellranger/GRCh38_97/ \
                 ${main_outpath}references/human/alevin-fry/ \
