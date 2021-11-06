@@ -28,18 +28,35 @@ create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -
 5. Run commands in R/Rstudio to create alevin-fry index:
 
  ```{bash}
- main_outpath=/path/to/main/folder/
- github_path=/path/to/github/repo/
- threads=16
- 
-# Scripts from https://github.com/COMBINE-lab/usefulaf
-Rscript --vanilla ${github_path}mapping/create_splici_index.R \
-    ${main_outpath}references/human/cellranger/GRCh38_97/ \
-    ${main_outpath}references/human/alevin-fry/ \
-    ${github_path}mapping/
+packages <- c("eisaR", "stringr", "Biostrings", "BSgenome", "GenomicFeatures", "dplyr")
+lapply(packages, function(x) {
+  if (!require(x, character.only = T)) install.packages(x)
+    suppressPackageStartupMessages(library(x, character.only = T))
+})
 
-salmon index \
-    -t ${main_outpath}references/alevin-fry/human/filtered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
-    -i ${main_outpath}references/alevin-fry/human/filtered/grch38_97_bench_splici_idx \
-    -p $threads
+# Change path accordingly
+main_outpath <- "/path/to/main/output/"
+github_path <- "path/to/github/dir/"
+
+
+ref <- paste0(main_outpath, "references/human/cellranger/GRCh38_97/")
+out_path <- paste0(main_outpath, "references/human/alevin-fry/")
+skript <- paste0(github_path, "mapping/alevin_index/")
+
+
+source(paste0(skript, "make_splici_reference.R"))
+setwd(ref)
+
+
+gtf_path = file.path( "genes/genes.gtf.gz")
+genome_path = file.path( "fasta/genome.fa")
+read_length = 91
+flank_trim_length = 5
+output_dir = paste0(out_path, "transcriptome_splici_fl", read_length - flank_trim_length)
+
+make_splici_txome(gtf_path=gtf_path, 
+                  genome_path=genome_path, 
+                  read_length=read_length, 
+                  flank_trim_length=flank_trim_length, 
+                  output_dir=output_dir)
 ```
