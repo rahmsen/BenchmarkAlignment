@@ -60,7 +60,7 @@ for sampledir in ${SAMPLEDIRS[*]}; do
 	echo "salmon alevin -i ${index} \
     -p $thread \
     -l IU $technology\
-    --sketch \
+    --rad \
     -1 $READ1 \
     -2 $READ2 \
     -o ${outFolderSample}_map >> ${outFolderSample}${SAMPLENAME}log.txt 

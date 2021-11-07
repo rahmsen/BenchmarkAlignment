@@ -1,10 +1,10 @@
 # Genome metadata
-genome="mm10"
+genome="GRCh38_97"
 version="2020-A"
 
 
 # Set up source and build directories
-build="mm10-2020-A_build"
+build="GRCh38_97-2020-A_build"
 mkdir -p "$build"
 
 
@@ -12,10 +12,11 @@ mkdir -p "$build"
 source="reference_sources"
 mkdir -p "$source"
 
-fasta_url="ftp://ftp.ensembl.org/pub/release-97/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz"
-fasta_in="${source}/Mus_musculus.GRCm38.dna.primary_assembly.fa"
-gtf_url="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M22/gencode.vM22.primary_assembly.annotation.gtf.gz"
-gtf_in="${source}/gencode.vM22.primary_assembly.annotation.gtf"
+
+fasta_url="http://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
+fasta_in="${source}/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+gtf_url="http://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_31/gencode.v31.primary_assembly.annotation.gtf.gz"
+gtf_in="${source}/gencode.v31.primary_assembly.annotation.gtf"
 
 echo "Download fasta and gtf files"
 if [ ! -f "$fasta_in" ]; then
@@ -27,11 +28,11 @@ fi
 
 echo "Modify fasta"
 # Modify sequence headers in the Ensembl FASTA to match the file
-# "GRCm38.primary_assembly.genome.fa" from GENCODE. Unplaced and unlocalized
-# sequences such as "GL456210.1" have the same names in both versions.
+# "GRCh38.primary_assembly.genome.fa" from GENCODE. Unplaced and unlocalized
+# sequences such as "KI270728.1" have the same names in both versions.
 #
 # Input FASTA:
-#   >1 dna:chromosome chromosome:GRCm38:1:1:195471971:1 REF
+#   >1 dna:chromosome chromosome:GRCh38:1:1:248956422:1 REF
 #
 # Output FASTA:
 #   >chr1 1
@@ -51,9 +52,9 @@ echo "Modify gtf"
 # previous Cell Ranger reference packages
 #
 # Input GTF:
-#     ... gene_id "ENSMUSG00000102693.1"; ...
+#     ... gene_id "ENSG00000223972.5"; ...
 # Output GTF:
-#     ... gene_id "ENSMUSG00000102693"; gene_version "1"; ...
+#     ... gene_id "ENSG00000223972"; gene_version "5"; ...
 gtf_modified="$build/$(basename "$gtf_in").modified"
 # Pattern matches Ensembl gene, transcript, and exon IDs for human or mouse:
 ID="(ENS(MUS)?[GTE][0-9]+)\.([0-9]+)"
@@ -74,6 +75,8 @@ cat "$gtf_in" \
 #     "gene_type" and "transcript_type".
 #   - Readthrough transcripts are present but are not marked with the
 #     "readthrough_transcript" tag.
+#   - Only the X chromosome versions of genes in the pseudoautosomal regions
+#     are present, so there is no "PAR" tag.
 BIOTYPE_PATTERN=\
 "(protein_coding|lncRNA|\
 IG_C_gene|IG_D_gene|IG_J_gene|IG_LV_gene|IG_V_gene|\
@@ -83,12 +86,14 @@ TR_V_pseudogene|TR_J_pseudogene)"
 GENE_PATTERN="gene_type \"${BIOTYPE_PATTERN}\""
 TX_PATTERN="transcript_type \"${BIOTYPE_PATTERN}\""
 READTHROUGH_PATTERN="tag \"readthrough_transcript\""
+PAR_PATTERN="tag \"PAR\""
 
 echo "Construct the gene ID allowlist"
 # Construct the gene ID allowlist. We filter the list of all transcripts
 # based on these criteria:
 #   - allowable gene_type (biotype)
 #   - allowable transcript_type (biotype)
+#   - no "PAR" tag (only present for Y chromosome PAR)
 #   - no "readthrough_transcript" tag
 # We then collect the list of gene IDs that have at least one associated
 # transcript passing the filters.
@@ -97,6 +102,7 @@ cat "$gtf_modified" \
     | grep -E "$GENE_PATTERN" \
     | grep -E "$TX_PATTERN" \
     | grep -Ev "$READTHROUGH_PATTERN" \
+    | grep -Ev "$PAR_PATTERN" \
     | sed -E 's/.*(gene_id "[^"]+").*/\1/' \
     | sort \
     | uniq \
@@ -113,7 +119,7 @@ grep -Ff "${build}/gene_allowlist" "$gtf_modified" \
 
 echo "Make reference with Cell Ranger"
 # Create reference package
-/opt/cellranger-4.0.0/cellranger mkref --ref-version="$version" \
+cellranger mkref --ref-version="$version" \
     --genome="$genome" \
     --fasta="$fasta_modified" \
     --genes="$gtf_filtered" \

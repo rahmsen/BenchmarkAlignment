@@ -1,0 +1,737 @@
+github_path=/media/Helios_scStorage/Ralf/Benchmark/Gigascience/git/BenchmarkAlignment/
+#main_outpath=/media/Storage/Benchmark/
+main_outpath=/media/Helios_scStorage/Ralf/Benchmark/
+whitelist_dir=/opt/cellranger-6.0.2/lib/python/cellranger/barcodes/
+threads=16
+app_dir=${main_outpath}software/
+
+cd $main_outpath
+mkdir MappedReads/pbmc_10x/alevin-fry/ MappedReads/Endothelial/alevin-fry/ MappedReads/Cardiac/alevin-fry/ MappedReads/pbmc_10x/cellranger6/ MappedReads/Endothelial/cellranger6/ MappedReads/Cardiac/cellranger6/ references
+
+# 2 Download & install Software
+mkdir ${app_dir}
+#	2.1 Cellranger
+		sudo curl -o cellranger-6.0.2.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-6.0.2.tar.gz&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci02LjAuMi50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE2MjYyMzc2Mzh9fX1dfQ__&Signature=aBfPWJo6Oa9w3d~ZRgxQPKzslpTkWXQ2xtde46T7107U~~I8JN13ZinosJ~9QuafLEnSX~wtxtw59dXZz04ZNITDmZB6D~lBxB46UCNmtQ99xubz1FPDpVNUmX0mVKu-3ZkrBn0QGE28RK4FlzWdSVFtMW~wTZEKVvVpLtaihcbmPVnXhMS1dqMqa45Kf~3joeXDnMV5771KG~ISnImZ95mOo0bgGHxRpkq4Y9KFPG4jhvep9ZQRIagEFISg3HnU74y6VxOJOb67~QRVxnVjaOTXquZ~TE3xk~Ec9NmJ0--sqsscXuARt-QiNX5IdDBT7-wklGUUzFMUMhT4zabXVw__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+		sudo tar -xvzf /opt/cellranger-6.0.2.tar.gz
+		sudo mv cellranger-6.0.2/ /opt/
+
+	#2.2 STARsolo
+		wget https://github.com/alexdobin/STAR/archive/2.7.3a.tar.gz
+		tar -xzf 2.7.3a.tar.gz
+
+	#2.3 Alevin / Salmon
+	mkdir ${app_dir}
+		wget -P ${app_dir} https://github.com/COMBINE-lab/salmon/releases/download/v1.1.0/salmon-1.1.0_linux_x86_64.tar.gz
+		tar -vxzf ${app_dir}salmon-1.1.0_linux_x86_64.tar.gz -C ${app_dir}
+
+	2.4 Kalisto
+	mkdir ${app_dir}kallisto
+		wget -P mkdir ${app_dir}kallisto https://github.com/pachterlab/kallisto/releases/download/v0.46.1/kallisto_linux-v0.46.1.tar.gz
+		tar -vxzf ${app_dir}kallisto/kallisto_linux-v0.46.1.tar.gz -C ${app_dir}
+		wget -P ${app_dir}kallisto/ https://github.com/BUStools/bustools/releases/download/v0.39.3/bustools_linux-v0.39.3.tar.gz
+        tar -vxzf ${app_dir}kallisto/bustools_linux-v0.39.3.tar.gz -C ${app_dir}
+# 2. Create reference genomes
+#	2.1 Download all files
+#		2.1.1. Human	
+			#Ensembl
+	 		cd /media/ATLAS_Genomes_Annotations/human/GRCh38.97/
+			wget ftp://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+			wget ftp://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
+			wget ftp://ftp.ensembl.org/pub/release-97/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
+			wget ftp://ftp.ensembl.org/pub/release-97/gtf/homo_sapiens/Homo_sapiens.GRCh38.97.gtf.gz
+
+			#Cellranger
+			wget -O cellrangerRefGenome/refdata-cellranger-GRCh38-3.0.0.tar.gz https://cf.10xgenomics.com/supp/cell-exp/refdata-cellranger-GRCh38-3.0.0.tar.gz
+			tar -xvzf cellrangerRefGenome/refdata-cellranger-GRCh38-3.0.0.tar.gz -C cellrangerRefGenome/
+#		2.1.2 Mouse
+			#Ensembl
+			cd /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/
+			wget ftp://ftp.ensembl.org/pub/release-97/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz
+			wget ftp://ftp.ensembl.org/pub/release-97/fasta/mus_musculus/cdna/Mus_musculus.GRCm38.cdna.all.fa.gz
+			wget ftp://ftp.ensembl.org/pub/release-97/fasta/mus_musculus/ncrna/Mus_musculus.GRCm38.ncrna.fa.gz
+			wget ftp://ftp.ensembl.org/pub/release-97/gtf/mus_musculus/Mus_musculus.GRCm38.97.gtf.gz
+
+#	2.2 Filter Genes and create Index
+#		2.2.1 Filter Genes
+			#Human
+			/opt/cellranger-3.0.2/cellranger mkgtf /media/ATLAS_Genomes_Annotations/human/GRCh38.97/Homo_sapiens.GRCh38.97.gtf \
+			/media/ATLAS_Genomes_Annotations/human/GRCh38.97/Homo_sapiens.GRCh38.97.cellranger_filtered.gtf \
+			--attribute=gene_biotype:protein_coding \
+			--attribute=gene_biotype:lncRNA \
+			--attribute=gene_biotype:IG_LV_gene \
+			--attribute=gene_biotype:IG_V_gene \
+			--attribute=gene_biotype:IG_V_pseudogene \
+			--attribute=gene_biotype:IG_D_gene \
+			--attribute=gene_biotype:IG_J_gene \
+			--attribute=gene_biotype:IG_J_pseudogene \
+			--attribute=gene_biotype:IG_C_gene \
+			--attribute=gene_biotype:IG_C_pseudogene \
+			--attribute=gene_biotype:TR_V_gene \
+			--attribute=gene_biotype:TR_V_pseudogene \
+			--attribute=gene_biotype:TR_D_gene \
+			--attribute=gene_biotype:TR_J_gene \
+			--attribute=gene_biotype:TR_J_pseudogene \
+			--attribute=gene_biotype:TR_C_gene
+
+			#Mouse
+			/opt/cellranger-3.0.2/cellranger mkgtf /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/Mus_musculus.GRCm38.97.gtf \
+			/media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/Mus_musculus.GRCm38.97.cellranger_filtered.gtf \
+			--attribute=gene_biotype:protein_coding \
+			--attribute=gene_biotype:lncRNA \
+			--attribute=gene_biotype:IG_LV_gene \
+			--attribute=gene_biotype:IG_V_gene \
+			--attribute=gene_biotype:IG_V_pseudogene \
+			--attribute=gene_biotype:IG_D_gene \
+			--attribute=gene_biotype:IG_J_gene \
+			--attribute=gene_biotype:IG_J_pseudogene \
+			--attribute=gene_biotype:IG_C_gene \
+			--attribute=gene_biotype:IG_C_pseudogene \
+			--attribute=gene_biotype:TR_V_gene \
+			--attribute=gene_biotype:TR_V_pseudogene \
+			--attribute=gene_biotype:TR_D_gene \
+			--attribute=gene_biotype:TR_J_gene \
+			--attribute=gene_biotype:TR_J_pseudogene \
+			--attribute=gene_biotype:TR_C_gene
+
+#		2.2.2 Create Ref Genome Cellranger
+        # 2.2.2.1 Create Ref Genome for Cellranger 6
+            #v5
+            #human
+              create_reference_GRCh38_97.sh
+            #mouse
+              create_ref_mouse_v5.sh
+
+		2.2.3 Create Index for STARsolo
+			# Human
+				STAR --runMode genomeGenerate \
+				--runThreadN 16 \
+				--genomeDir /media/Storage/additional_datasets/pbmc_10x/starsolo_remap/reference/index_filtered \
+				--sjdbGTFfile /media/Storage/additional_datasets/human_embryo/references/Homo_sapiens.GRCh38.97.cellranger_filtered.gtf \
+				--genomeFastaFiles /media/Storage/additional_datasets/human_embryo/references/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
+				--limitGenomeGenerateRAM 100000000000
+			# Mouse
+			    STAR --runMode genomeGenerate \
+				--runThreadN 16 \
+				--genomeDir /media/Helios_scStorage/Ralf/MouseHom_AMI/Results/Star_solo/index \
+				--sjdbGTFfile /media/ATLAS_Genomes_Annotations/mouse/GRCm38/GRCm38.97/Mus_musculus.GRCm38.97.cellranger_filtered.gtf \
+				--genomeFastaFiles /media/ATLAS_Genomes_Annotations/mouse/GRCm38/GRCm38.97/Mus_musculus.GRCm38.dna.primary_assembly.fa \
+				--limitGenomeGenerateRAM 100000000000
+
+	#		2.2.4 Create Index for Salmon
+#			2.2.4.1 Human	
+				cd /media/ATLAS_Genomes_Annotations/human/GRCh38.97/		
+				#create filtered fasta transcriptome file
+				cat Homo_sapiens.GRCh38.cdna.all.fa Homo_sapiens.GRCh38.ncrna.fa > Homo_sapiens.GRCh38.cdna_ncrna.fa
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3)}' Homo_sapiens.GRCh38.97.cellranger_filtered.gtf | sort > transcript_names_gtf_filtered.txt
+
+				#Following commands r run within R
+					transcriptome.fa <- read.fasta("Homo_sapiens.GRCh38.97.cdna_ncrna.fa",seqtype = "DNA")
+					transcript.names <- read.table("transcript_names_gtf_filtered.txt",stringsAsFactors = F)
+					filtered_transcriptome <- transcriptome.fa[names(transcriptome.fa) %in% transcript.names$V1]
+					write.fasta(filtered_transcriptome,names = names(filtered_transcriptome), "Homo_sapiens.GRCh38.97.cdna_ncrna.filtered.fa")			
+
+
+				#get genome targets
+				grep "^>" Homo_sapiens.GRCh38.dna.primary_assembly.fa | cut -d " " -f 1 > Homo_sapiens.GRCh38.dna.primary_assembly.genomeNames
+				sed -i.bak -e 's/>//g' Homo_sapiens.GRCh38.dna.primary_assembly.genomeNames
+				#combine transcript and genome (Transcript targets before Genome targets)
+				cat Homo_sapiens.GRCh38.97.cdna_ncrna.filtered.fa Homo_sapiens.GRCh38.dna.primary_assembly.fa > Homo_sapiens.GRCh38.cdna_ncrna_filtered.dna_primaryassembly.combined.fa
+				#create index
+				/opt/salmon-latest_linux_x86_64/bin/salmon index -t Homo_sapiens.GRCh38.cdna_ncrna_filtered.dna_primaryassembly.combined.fa -d Homo_sapiens.GRCh38.dna.primary_assembly.genomeNames -p 22 -i salmon_index_filtered
+				#create transcript to gene file (txp)
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3) "\t" substr($10,2,length($10)-3) "." substr($12,2,length($12)-3)}' \
+  Homo_sapiens.GRCh38.97.cellranger_filtered.gtf > txp2gene.tsv
+
+#			2.2.4.2Mouse
+				cd /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/
+				#create filtered fasta transcriptome file
+				cat Mus_musculus.GRCm38.cdna.all.fa Mus_musculus.GRCm38.ncrna.fa > Mus_musculus.GRCm38.cdna_ncrna.fa
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3)}' Mus_musculus.GRCm38.97.cellranger_filtered.gtf | sort > transcript_names_gtf_filtered.txt
+
+				#Following commands r run within R
+					library()
+					transcriptome.fa <- read.fasta("Mus_musculus.GRCm38.cdna_ncrna.fa",seqtype = "DNA")
+					transcript.names <- read.table("transcript_names_gtf_filtered.txt",stringsAsFactors = F)
+					filtered_transcriptome <- transcriptome.fa[names(transcriptome.fa) %in% transcript.names$V1]
+					write.fasta(filtered_transcriptome,names = names(filtered_transcriptome), "Mus_musculus.GRCm38.cdna_ncrna.filtered.fa")
+
+				#get genome targets
+				grep "^>" Mus_musculus.GRCm38.dna.primary_assembly.fa | cut -d " " -f 1 > Mus_musculus.GRCm38.dna.primary_assembly.genomeNames
+				sed -i.bak -e 's/>//g' Mus_musculus.GRCm38.dna.primary_assembly.genomeNames
+				#combine transcript and genome (Transcript targets before Genome targets)
+				cat Mus_musculus.GRCm38.cdna_ncrna.filtered.fa Mus_musculus.GRCm38.dna.primary_assembly.fa > Mus_musculus.GRCm38.cdna_ncrna_filtered.dna_primaryassembly.combined.fa
+				#create index
+				/opt/salmon-latest_linux_x86_64/bin/salmon index -t Mus_musculus.GRCm38.cdna_ncrna_filtered.dna_primaryassembly.combined.fa -d Mus_musculus.GRCm38.dna.primary_assembly.genomeNames -p 22 -i salmon_index_filtered
+
+				#create transcript to gene file (txp)
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3) "\t" substr($10,2,length($10)-3) "." substr($12,2,length($12)-3)}' \
+  Mus_musculus.GRCm38.97.cellranger_filtered.gtf > txp2gene.tsv
+
+	        #2.2.5 Create Index for Alevin-fry
+	        # Human
+				Rscript --vanilla ${github_path}mapping/create_splici_index.R \
+                    ${main_outpath}references/cellranger5/human/GRCh38_97/ \
+                    ${main_outpath}references/alevin-fry/human/filtered/
+
+                salmon index \
+                    -t ${main_outpath}references/alevin-fry/human/filtered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
+                    -i ${main_outpath}references/alevin-fry/human/filtered/grch38_97_bench_splici_idx \
+                    -p $threads
+            # unfiltered
+				Rscript --vanilla ${github_path}mapping/create_splici_index.R \
+                    ${main_outpath}references/cellranger5/human/GRCh38_97_unfiltered/ \
+                    ${main_outpath}references/alevin-fry/human/unfiltered/ \
+                    ${github_path}mapping/
+
+                salmon index \
+                    -t ${main_outpath}references/alevin-fry/human/unfiltered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
+                    -i ${main_outpath}references/alevin-fry/human/unfiltered/grch38_97_bench_splici_idx \
+                    -p $threads
+
+            # Mouse
+                Rscript --vanilla ${github_path}mapping/create_splici_index.R \
+                    ${main_outpath}references/cellranger5/mouse/mm10/ \
+                    ${main_outpath}references/alevin-fry/mouse/filtered/
+
+                salmon index \
+                    -t ${main_outpath}references/alevin-fry/mouse/filtered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
+                    -i ${main_outpath}references/alevin-fry/mouse/filtered/grch38_97_bench_splici_idx \
+                    -p $threads
+
+                # unfiltered
+                Rscript --vanilla ${github_path}mapping/create_splici_index.R \
+                    ${main_outpath}references/cellranger5/mouse/mm10_unfiltered/ \
+                    ${main_outpath}references/alevin-fry/mouse/unfiltered/ \
+                    ${github_path}mapping/
+
+                salmon index \
+                    -t ${main_outpath}references/alevin-fry/mouse/unfiltered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
+                    -i ${main_outpath}references/alevin-fry/mouse/unfiltered/grch38_97_bench_splici_idx \
+                    -p $threads
+
+
+#		2.2.6 Create Index for Kalisto
+#			2.2.6.1 Human
+				#create transcript to gene list for kallisto
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3) "\t" substr($10,2,length($10)-3)  "." substr($12,2,length($12)-3) "\t" substr($18,2,length($18)-3)}' Homo_sapiens.GRCh38.97.cellranger_filtered.gtf > transcripts_to_genes_kallisto_filtered.txt
+				#Run indexing
+				${app_dir}kallisto/kallisto index -i Homo_sapiens.GRCh38.97.cdna_ncrna.kallisto_index_filtered Homo_sapiens.GRCh38.97.cdna_ncrna.filtered.fa
+
+			    ${app_dir}kallisto/kallisto index -i ${main_outpath}references/kallisto/human/Homo_sapiens.GRCh38.97_index_filtered \
+                /media/Storage/additional_datasets/human_embryo/references/Homo_sapiens.GRCh38.cdna_ncrna.filtered.fa
+
+                ${app_dir}kallisto/kallisto index -i ${main_outpath}references/kallisto/human/Homo_sapiens.GRCh38.97_index \
+                /media/Storage/additional_datasets/human_embryo/references/Homo_sapiens.GRCh38.cdna_ncrna.fa
+#			2.2.6.2 Mouse
+				#create transcript to gene list for kallisto
+				awk '{if ($3=="transcript") print substr($14,2,length($14)-3) "." substr($16,2,length($16)-3) "\t" substr($10,2,length($10)-3)  "." substr($12,2,length($12)-3) "\t" substr($18,2,length($18)-3)}' Mus_musculus.GRCm38.97.cellranger_filtered.gtf > transcripts_to_genes_kallisto_filtered.txt
+				#Run indexing
+				/opt/kallisto/kallisto index -i Mus_musculus.GRCm38.97.cdna_ncrna.kallisto_index_filtered Mus_musculus.GRCm38.cdna_ncrna.filtered.fa
+
+
+
+# 3. Run Mapping
+#	3.1 Run Mapping with Cell Ranger 6
+#	3.1.1 Cardiac (Mouse)
+        cd ${main_outpath}MappedReads/Cardiac/cellranger6/results_filtered_anno/
+		bash ${github_path}mapping/MapCellranger6.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+		-d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/cellranger5/mouse/mm10/ -t 16
+#	3.1.2 Endothelial (Mouse)
+        cd ${main_outpath}MappedReads/Endothelial/cellranger6/results_filtered_anno/
+		bash ${github_path}mapping/MapCellranger6_endo.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+		-d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/cellranger5/mouse/mm10/ -t 16
+
+#	3.1.3 PBMC (Human)
+        cd ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_filtered_anno/
+		bash ${github_path}mapping/MapCellranger6.sh -s sample1,sample2,sample3,sample4 \
+		-d $(ls -d ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/cellranger5/human/GRCh38_97/ -t 16
+
+
+		## unfiltered
+		#	3.1.1 Cardiac (Mouse)
+        cd ${main_outpath}MappedReads/Cardiac/cellranger6/results_unfiltered_anno/
+		bash ${github_path}mapping/MapCellranger6.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+		-d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/cellranger5/mouse/mm10_unfiltered/ -t 16
+#	3.1.2 Endothelial (Mouse)
+        cd ${main_outpath}MappedReads/Endothelial/cellranger6/results_unfiltered_anno/
+		bash ${github_path}mapping/MapCellranger6_endo.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+		-d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/cellranger5/mouse/mm10_unfiltered/ -t 16
+#	3.1.3 PBMC (Human)
+        cd ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_unfiltered_anno/
+		bash ${github_path}mapping/MapCellranger6.sh -s sample1,sample2,sample3,sample4 \
+		-d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/cellranger5/human/GRCh38_97_unfiltered/ -t 16
+
+
+# 3.2 Run Mapping with STARsolo
+#	3.2.1 Cardiac (Mouse)
+		bash ${github_path}mapping/MapSTARsolo.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+		-d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/starsolo/mouse/index_filtered \
+		-w ${whitelist_dir}737K-august-2016.txt -u 10 -o ${main_outpath}/MappedReads/starsolo/Cardiac/
+#	3.2.2 Endothelial (Mouse)
+		bash ${github_path}mapping/MapSTARsolo.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+		-d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/starsolo/mouse/index_filtered \
+		-w ${whitelist_dir}737K-august-2016.txt \
+		-u 9 -o ${main_outpath}/MappedReads/starsolo/Endothelial/
+#	3.2.3 PBMC (Human)
+		bash ${github_path}mapping/MapSTARsolo.sh -s sample1,sample2,sample3,sample4 \
+		-d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/starsolo/human/index_filtered \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-u 12 -o ${main_outpath}/MappedReads/starsolo/pbmc/
+
+#	3.2.1 Cardiac (Mouse)
+		bash ${github_path}mapping/MapSTARsolo.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+		-d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/starsolo/mouse/index_unfiltered \
+		-w ${whitelist_dir}737K-august-2016.txt \
+		-u 10 -o ${main_outpath}MappedReads/starsolo/Cardiac/
+#	3.2.2 Endothelial (Mouse)
+		bash ${github_path}mapping/MapSTARsolo.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+		-d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/starsolo/mouse/index_unfiltered \
+		-w ${whitelist_dir}737K-august-2016.txt \
+		-u 9 -o ${main_outpath}MappedReads/starsolo/Endothelial/
+#	3.2.3 PBMC (Human)
+		bash ${github_path}mapping/MapSTARsolo.sh -s sample1,sample2,sample3,sample4 \
+		-d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/starsolo/human/index_unfiltered \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-u 12 -o ${main_outpath}MappedReads/starsolo/pbmc/
+
+
+
+#3.3. Run Mapping with Alevin
+#	3.3.1 Cardiac (Mouse)
+		bash ${github_path}mapping/MapAlevin.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+        -d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/alevin/mouse/salmon_index_filtered \
+		-o ${main_outpath}/MappedReads/Alevin/Cardiac/ \
+		-t --chromium -x /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/txp2gene.tsv
+#	3.3.2 Endothelial (Mouse)
+		bash ${github_path}mapping/MapAlevin.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+        -d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/alevin/mouse/salmon_index_filtered \
+		-o ${main_outpath}/MappedReads/Alevin/Endothelial/ \
+		-t --end\ 5\ --umiLength\ 9\ --barcodeLength\ 16 -x /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/txp2gene.tsv
+
+#	3.3.3 PBMC (Human)
+		bash ${github_path}mapping/MapAlevin.sh -s sample1,sample2,sample3,sample4 \
+        -d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/alevin/human/salmon_index_filtered \
+		-o ${main_outpath}/MappedReads/Alevin/pbmc/ \
+		-t --chromiumV3 -x /media/ATLAS_Genomes_Annotations/human/GRCh38.97/txp2gene.tsv
+# unfiltered
+#	3.3.1 Cardiac (Mouse)
+		bash ${github_path}mapping/MapAlevin.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+        -d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/alevin/mouse/salmon_index_unfiltered \
+		-o ${main_outpath}/MappedReads/Alevin/Cardiac/ \
+		-t --chromium -x /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/txp2gene.tsv
+#	3.3.2 Endothelial (Mouse)
+		bash ${github_path}mapping/MapAlevin.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+        -d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/alevin/mouse/salmon_index_unfiltered \
+		-o ${main_outpath}/MappedReads/Alevin/Endothelial/ \
+		-t --end\ 5\ --umiLength\ 9\ --barcodeLength\ 16 -x /media/ATLAS_Genomes_Annotations/mouse/GRCm38.97/txp2gene.tsv
+
+#	3.3.3 PBMC (Human)
+		bash ${github_path}mapping/MapAlevin.sh -s sample1,sample2,sample3,sample4 \
+        -d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/alevin/human/salmon_index_unfiltered \
+		-o ${main_outpath}/MappedReads/Alevin/pbmc/ \
+		-t --chromiumV3 -x /media/ATLAS_Genomes_Annotations/human/GRCh38.97/txp2gene.tsv
+
+
+
+#	3.3.4 create Backup of files before changing them
+		sed -i.bak '' DavidRuns/Mapping/Alevin/*/*/alevin/quants_mat_cols.txt
+#	3.3.5 Adjust Gene Names
+		#Cardiac
+		    cd ${github_path}/mapping/
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Cardiac/alevin/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#Endothelial
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Endothelial/alevin/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#PBMC
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/pbmc_10x/alevin/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o human -n ${github_path}mapping/all_genes_human.tsv
+        #HF
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/HF/alevin/results_filtered_anno/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o human -n ${github_path}mapping/all_genes_human.tsv
+
+        ### unfiltered
+        #Cardiac
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Cardiac/alevin/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#Endothelial
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Endothelial/alevin/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#PBMC
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/pbmc_10x/alevin/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o human -n ${github_path}mapping/all_genes_human.tsv
+		#HF
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/HF/alevin/results_unfiltered_anno/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin -o human -n ${github_path}mapping/all_genes_human.tsv
+
+
+    #3.4 Alevin-fry
+    mkdir ${main_outpath}MappedReads/Cardiac/alevin-fry/
+        #3.3.1 Cardiac (Mouse)
+            mkdir ${main_outpath}MappedReads/Cardiac/alevin-fry/results_filtered_anno/
+			bash ${github_path}/mapping/MapAlevin-fry.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+            -d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+			-i ${main_outpath}references/alevin-fry/mouse/filtered/ \
+			-o ${main_outpath}MappedReads/Cardiac/alevin-fry/results_filtered_anno/ \
+			-t --chromium -x 16
+#		3.3.2 Endothelial (Mouse)
+            mkdir ${main_outpath}MappedReads/Endothelial/alevin-fry/results_unfiltered_anno/
+			bash ${github_path}/mapping/MapAlevin-fry.sh \
+			-s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+            -d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+			-i ${main_outpath}references/alevin-fry/mouse/filtered/ \
+			-o ${main_outpath}MappedReads/Endothelial/alevin-fry/results_filtered_anno/ \
+			-x 16 \
+			-t --end\ 5\ --umiLength\ 9\ --barcodeLength\ 16
+
+#		3.3.3 PBMC (Human)
+            mkdir ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/
+            bash ${github_path}/mapping/MapAlevin-fry.sh \
+            -s sample1,sample2,sample3,sample4 \
+            -d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+            -i ${main_outpath}references/alevin-fry/human/filtered/ \
+            -o ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/ \
+            -t --chromiumV3 -x 16
+
+#		3.3.3 HF (Human)
+            mkdir ${main_outpath}MappedReads/HF/alevin-fry/
+            mkdir ${main_outpath}MappedReads/HF/alevin-fry/results_filtered_anno/
+            bash ${github_path}/mapping/MapAlevin-fry.sh \
+            -s 103837-001-001,103837-001-002,103837-001-003,103837-001-004,103837-001-005 \
+            -d $(find ${main_outpath}fastqs/HF/103837-001-00*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+            -i ${main_outpath}references/alevin-fry/human/filtered/ \
+            -o ${main_outpath}MappedReads/HF/alevin-fry/results_filtered_anno/ \
+            -t --chromium -x 16
+
+        ## Mapping with unfiltered annotation
+            mkdir ${main_outpath}MappedReads/Cardiac/alevin-fry/results_filtered_anno/
+        #3.3.1 Cardiac (Mouse)
+			bash ${github_path}/mapping/MapAlevin-fry.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+            -d $(find ${main_outpath}fastqs/Cardiac/MF1701*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+			-i ${main_outpath}references/alevin-fry/mouse/unfiltered/ \
+			-o ${main_outpath}MappedReads/Cardiac/alevin-fry/results_unfiltered_anno/ \
+			-t --chromium -x 16
+#		3.3.2 Endothelial (Mouse)
+            mkdir ${main_outpath}MappedReads/Endothelial/alevin-fry/results_unfiltered_anno/
+			bash ${github_path}/mapping/MapAlevin-fry.sh \
+			-s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+            -d $(find ${main_outpath}fastqs/Endothelial/* -type d | sed -z 's/\n/,/g;s/,$//') \
+			-i ${main_outpath}references/alevin-fry/mouse/unfiltered/ \
+			-o ${main_outpath}MappedReads/Endothelial/alevin-fry/results_unfiltered_anno/ \
+			-x 16 \
+			-t --end\ 5\ --umiLength\ 9\ --barcodeLength\ 16
+
+#		3.3.3 PBMC (Human)
+            mkdir ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_unfiltered_anno/
+            bash ${github_path}/mapping/MapAlevin-fry.sh \
+            -s sample1,sample2,sample3,sample4 \
+            -d $(find ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/sample*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+            -i ${main_outpath}references/alevin-fry/human/unfiltered/ \
+            -o ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_unfiltered_anno/ \
+            -t --chromiumV3 -x 16
+
+            mkdir ${main_outpath}MappedReads/HF/alevin-fry/results_unfiltered_anno/
+            bash ${github_path}/mapping/MapAlevin-fry.sh \
+            -s 103837-001-001,103837-001-002,103837-001-003,103837-001-004,103837-001-005 \
+            -d $(find ${main_outpath}fastqs/HF/103837-001-00*/ -type d | sed -z 's/\n/,/g;s/,$//') \
+            -i ${main_outpath}references/alevin-fry/human/unfiltered/ \
+            -o ${main_outpath}MappedReads/HF/alevin-fry/results_unfiltered_anno/ \
+            -t --chromium -x 16
+
+        #3.4.5 Adjust Gene Names
+		#Cardiac
+		    cd ${github_path}/mapping/
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Cardiac/alevin-fry/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#Endothelial
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Endothelial/alevin-fry/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#PBMC
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o human -n ${github_path}mapping/all_genes_human.tsv
+        #HF
+            bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/HF/alevin-fry/results_filtered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o human -n ${github_path}mapping/all_genes_human.tsv
+        ### unfiltered
+        #Cardiac
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Cardiac/alevin-fry/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#Endothelial
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Endothelial/alevin-fry/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+
+		#PBMC
+		    bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+		    -m alevin-fry -o human -n ${github_path}mapping/all_genes_human.tsv
+        
+        #HF
+        bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/HF/alevin-fry/results_unfiltered_anno/*/*/alevin/quants_mat_cols.txt | sed -z 's/\n/,/g;s/,$//') \
+            -m alevin-fry -o human -n ${github_path}mapping/all_genes_human.tsv
+
+# 3.4. Run Kallisto
+cd $main_outpath
+mkdir ${main_outpath}MappedReads/HF/kallisto/
+        #3.3.1 Cardiac (Mouse)
+            
+	#3.4.1 Cardiac (Mouse)
+		bash ${github_path}mapping/MapKallisto.sh -s MF17010,MF17013,MF17014,MF17015,MF17016,MF17017,MF17018 \
+		-d $(ls -d ${main_outpath}fastqs/Cardiac/* | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/kallisto/Mus_musculus.GRCm38.97_index_filtered \
+		-o ${main_outpath}MappedReads/Kallisto/Cardiac/ \
+		-c 10xv2 -t 16 \
+		-w ${whitelist_dir}737K-august-2016.txt \
+		-x ${main_outpath}references/transcripts_to_genes_kallisto_filtered.txt
+
+	#3.4.2 Endothelial (Mouse)
+		#combine Fastq Files prior to Mapping
+		bash ${main_outpath}fastqs/Endothelial/combineFastqs.sh
+	
+		bash ${github_path}mapping/MapKallisto.sh -s Brain,Colon,Heart,Kidney,Liver,Lung,muscle_EDL,muscle_Soleus,Small_Intestine,Spleen,Testis \
+		-d $(ls -d ${main_outpath}fastqs/Endothelial/* | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/Mus_musculus.GRCm38.97_index_filtered \
+		-o ${main_outpath}MappedReads/Kallisto/Endothelial/ \
+		-c 0,0,16:0,16,25:1,0,0 -t 16 \
+		-w ${whitelist_dir}737K-august-2016.txt \
+		-x ${main_outpath}references/transcripts_to_genes_kallisto_filtered.txt
+
+	#3.4.3 PBMC (Human)
+		bash ${github_path}mapping/MapKallisto.sh -s sample1,sample2,sample3,sample4 \
+		-d $(ls -d ${main_outpath}fastqs/PBMC/5k_pbmc_v3_fastqs/* | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/Mus_musculus.GRCm38.97_index_filtered \
+		-o ${main_outpath}MappedReads/Kallisto/pbmc/ \
+		-c 10xv3 -t 16 \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-x ${main_outpath}references/transcripts_to_genes_kallisto_filtered.txt
+
+	#3.4.3 HF (Human)
+	mkdir ${main_outpath}MappedReads/HF/kallisto/results_filtered_anno/
+		bash ${github_path}mapping/MapKallisto.sh -s 103837-001-001,103837-001-002,103837-001-003,103837-001-004,103837-001-005 \
+		-d $(ls -d ${main_outpath}fastqs/HF/103837-001-004 | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/kallisto/human/Homo_sapiens.GRCh38.97_index_filtered \
+		-o ${main_outpath}MappedReads/HF/kallisto/results_filtered_anno/ \
+		-c 10xv2 -t 16 \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-x ${main_outpath}references/kallisto/transcripts_to_genes_filtered.txt
+
+    #unfiltered
+	#3.4.3 HF (Human)
+	mkdir ${main_outpath}MappedReads/HF/kallisto/results_unfiltered_anno/
+		bash ${github_path}mapping/MapKallisto.sh -s 103837-001-001,103837-001-002,103837-001-003,103837-001-004,103837-001-005 \
+		-d $(ls -d ${main_outpath}fastqs/HF/103837-001-00* | sed -z 's/\n/,/g;s/,$//') \
+		-i ${main_outpath}references/kallisto/human/Homo_sapiens.GRCh38.97_index \
+		-o ${main_outpath}MappedReads/HF/kallisto/results_unfiltered_anno/ \
+		-c 10xv2 -t 16 \
+		-w ${whitelist_dir}3M-february-2018.txt \
+		-x ${main_outpath}references/kallisto/transcripts_to_genes.txt
+
+3.4.4 Generate Backup files before changing them
+		sed -i.bak '' Mapping/Kallisto/*/*/counting/gcm.genes.txt 
+
+3.4.5 Adjust Gene Names
+cd ${github_path}/mapping/
+		#Cardiac 
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Cardiac/kallisto/results_filtered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//')   \
+		 -m kallisto -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+		
+		#Endothelial
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Endothelial/kallisto/results_filtered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//')  \
+		 -m kallisto -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+		
+		#PBMC
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/pbmc_10x/kallisto/results_filtered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//')  \
+		 -m kallisto -o human -n ${github_path}mapping/all_genes_human.tsv
+
+		#HF
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/HF/kallisto/results_filtered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//') \
+		 -m kallisto -o human -n ${github_path}mapping/all_genes_human.tsv
+
+		 #unfiltered
+		 #Cardiac 
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Cardiac/kallisto/results_unfiltered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//')   \
+		 -m kallisto -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+		
+		#Endothelial
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/Endothelial/kallisto/results_unfiltered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//')  \
+		 -m kallisto -o mouse -n ${github_path}mapping/gene_name_mouse.txt
+		
+		#PBMC
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/pbmc_10x/kallisto/results_unfiltered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//')  \
+		 -m kallisto -o human -n ${github_path}mapping/all_genes_human.tsv
+
+		#HF
+		 bash ${github_path}mapping/adjust_geneNames.sh -d $(ls ${main_outpath}MappedReads/HF/kallisto/results_unfiltered_anno/*/counting/gcm.genes.txt | sed -z 's/\n/,/g;s/,$//') \
+		 -m kallisto -o human -n ${github_path}mapping/all_genes_human.tsv
+
+
+#4.2.3. Filter by Empty Drops Method
+#Cardiac
+
+# Cell Ranger 6
+for i in `ls -1d ${main_outpath}MappedReads/Cardiac/cellranger6/results_filtered_anno/*/outs/` ; do 
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ $i "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+mv ${i}emptyDrops_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/features_backup.tsv.gz &&\
+	cp ${i}raw_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/
+done
+
+ #unfiltered
+for i in `ls -1d ${main_outpath}MappedReads/Cardiac/cellranger6/results_unfiltered_anno/*/outs/` ; do 
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ $i "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}emptyDrops_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/features_backup.tsv.gz &&\
+	cp ${i}raw_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/
+done
+
+# STARsolo
+for i in `ls -1d ${main_outpath}MappedReads/Cardiac/Star_solo/*/Solo.out/Gene/` ; do 
+	Rscript --vanilla ${github_path}filter_raw_emptyDrops.R ${i}raw/ $i "star_solo" "emptyDrops" \
+	mv ${i}filtered_matrix_emptyDrops/genes.tsv ${i}filtered_matrix_emptyDrops/genes_backup.tsv \
+	cp ${i}raw/genes.tsv ${i}filtered_matrix_emptyDrops/genes.tsv
+done
+    
+
+# Kallisto
+for i in `ls -1d ${main_outpath}Mapping/Kallisto/Cardiac/*/counting/`; do 
+	Rscript --vanilla ${github_path}filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $i
+done
+ 
+sed -i.bak '' ${main_outpath}Mapping/Kallisto/Cardiac/MF*/counting/filtered_matrix_emptyDrops/genes.tsv
+
+for i in `ls -1d ${main_outpath}Mapping/Kallisto/Cardiac/MF*/counting/filtered_matrix_emptyDrops/genes.tsv`; do awk '{print $1 "\t" $2}' $i.bak > $i; done 
+
+
+
+#Endothelial
+# Cell Ranger 6
+for i in `ls -1d ${main_outpath}MappedReads/Endothelial/cellranger6/results_filtered_anno/*/outs/` ; do
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ $i "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}emptyDrops_feature_bc_matrix/genes.tsv ${i}emptyDrops_feature_bc_matrix/genes_backup.tsv &&\
+	zcat ${i}raw_feature_bc_matrix/features.tsv.gz > ${i}emptyDrops_feature_bc_matrix/genes.tsv
+done
+
+#unfiltered
+for i in `ls -1d ${main_outpath}MappedReads/Endothelial/cellranger6/results_unfiltered_anno/*/outs/` ; do
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ $i "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}emptyDrops_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/features_backup.tsv.gz &&\
+	cp ${i}raw_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/
+done
+
+# STARsolo
+for i in `ls -1d ${main_outpath}MappedReads/Endothelial/Star_solo/*/Solo.out/Gene/` ; do 
+	Rscript --vanilla ${github_path}filter_raw_emptyDrops.R ${i}raw/ $i "star_solo" "emptyDrops" &&\
+	mv ${i}filtered_matrix_emptyDrops/genes.tsv ${i}filtered_matrix_emptyDrops/genes_backup.tsv &&\
+	cp ${i}raw/genes.tsv ${i}filtered_matrix_emptyDrops/genes.tsv
+done
+
+# Kallisto
+for i in `ls -1d ${main_outpath}MappedReads/Kallisto/Endothelial/*/counting/`; do 
+	Rscript --vanilla ${github_path}filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $i
+done
+
+sed -i.bak '' ${main_outpath}MappedReads/Kallisto/Endothelial/*/counting/filtered_matrix_emptyDrops/genes.tsv
+
+for i in `ls -1d ${main_outpath}MappedReads/Kallisto/Endothelial/*/counting/filtered_matrix_emptyDrops/genes.tsv`; do awk '{print $1 "\t" $2}' $i.bak > $i; done 
+
+
+#PBMC
+# Cell Ranger 6
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_filtered_anno/*/outs/`; do
+    { time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ ${i} "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt  &&\
+    mv ${i}emptyDrops_feature_bc_matrix/genes.tsv ${i}emptyDrops_feature_bc_matrix/genes_backup.tsv &&\
+    zcat ${i}raw_feature_bc_matrix/features.tsv.gz > ${i}emptyDrops_feature_bc_matrix/genes.tsv
+done
+
+#unfiltered
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/cellranger6/results_unfiltered_anno/*/outs/`; do
+    { time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ ${i} "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt  &&\
+    mv ${i}emptyDrops_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/features_backup.tsv.gz &&\
+    cp ${i}raw_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/
+done
+
+# STARsolo
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/Star_solo/*/Solo.out/Gene/`; do 
+	Rscript --vanilla ${github_path}filter_raw_emptyDrops.R ${i}raw/ $i "star_solo" "emptyDrops" \
+	mv ${i}filtered_matrix_emptyDrops/genes.tsv ${i}filtered_matrix_emptyDrops/genes_backup.tsv \
+	cp ${i}raw/genes.tsv ${i}filtered_matrix_emptyDrops/genes.tsv 
+done
+
+# Kallisto
+for i in `ls -1d ${main_outpath}MappedReads/Kallisto/pbmc/*/counting/`; do 
+	Rscript --vanilla ${github_path}filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $i
+done 
+
+#4.2.4 filter columns of the genes.tsv for human, otherwise the data is handled as multiple experiments from the Read10X function
+sed -i.bak '' ${main_outpath}MappedReads/Kallisto/pbmc/sample*/counting/filtered_matrix_emptyDrops/genes.tsv
+
+for i in `ls -1d ${main_outpath}MappedReads/Kallisto/pbmc/sample*/counting/filtered_matrix_emptyDrops/genes.tsv`; do awk '{print $1 "\t" $2}' $i.bak > $i; done 
+
+
+#HF
+# Cell Ranger 6
+for i in `ls -1d ${main_outpath}MappedReads/HF/cellranger6/results_filtered_anno/*/outs/` ; do 
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ $i "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}emptyDrops_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/features_backup.tsv.gz &&\
+	cp ${i}raw_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/
+done
+
+# unfiltered
+for i in `ls -1d ${main_outpath}MappedReads/HF/cellranger6/results_unfiltered_anno/*/outs/` ; do 
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw_feature_bc_matrix/ $i "cellranger" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}emptyDrops_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/features_backup.tsv.gz &&\
+	cp ${i}raw_feature_bc_matrix/features.tsv.gz ${i}emptyDrops_feature_bc_matrix/
+done
+
+# STARsolo
+for i in `ls -1d ${main_outpath}MappedReads/HF/starsolo/results_filtered_anno/*/Solo.out/Gene/` ; do 
+	#gzip ${i}/raw/*
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw/ $i "starsolo" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}filtered_matrix_emptyDrops/features.tsv.gz ${i}filtered_matrix_emptyDrops/features_backup.tsv.gz &&\
+	cp ${i}raw/features.tsv.gz ${i}filtered_matrix_emptyDrops/
+done
+
+# unfiltered
+
+for i in `ls -1d ${main_outpath}MappedReads/HF/starsolo/results_unfiltered_anno/*/Solo.out/Gene/` ; do
+	gzip ${i}/raw/*
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw/ $i "starsolo" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
+	mv ${i}filtered_matrix_emptyDrops/features.tsv.gz ${i}filtered_matrix_emptyDrops/features_backup.tsv.gz &&\
+	cp ${i}raw/features.tsv.gz ${i}filtered_matrix_emptyDrops/
+done
+
+# Kallisto
+for i in `ls -1d ${main_outpath}MappedReads/HF/kallisto/results_filtered_anno/*/counting/`; do
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt
+done
+
+# unfiltered
+for i in `ls -1d ${main_outpath}MappedReads/HF/kallisto/results_unfiltered_anno/103837-001-00[1-5]/counting/`; do 
+	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt
+done 
+
+
+
+#5. import to Seurat
+termin

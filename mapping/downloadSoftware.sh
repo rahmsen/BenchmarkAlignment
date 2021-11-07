@@ -17,7 +17,7 @@ while test $# -gt 0
 	do
 		case $1 in
 			-h | -help) usage;;
-			-i | -ouput) main_outpath=$2;;
+			-o | -ouput) main_outpath=$2;;
 			*) echo "ERROR: unknown argument $1" ; exit -1
 	esac
 	shift 2
