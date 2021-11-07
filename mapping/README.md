@@ -2,30 +2,24 @@
 
 ## Download and install mapper
 
-1. Run script install_mapper.sh to download and install each mapper.
+1. Run script downloadSoftware.sh to download and install each mapper.
 
  ```{bash}
-downloadSoftware.sh -o path/to/main/output/ -g path/to/github/dir/
+downloadSoftware.sh -o path/to/main/output/
   ```
 2. Download Cell Ranger 6 from the [10x website](https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/6.0) to ../software/cellranger and unpack
 
-## Download reference genome and transcriptome
+
+## Create index for each tool and download sequence data of PBMC
 
 3. Run script create_index_download_data.sh
 
  ```{bash}
-create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/
+create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/ -t 16
   ```
+## Create the index for Alevin-fry
 
-## Create index for each tool and download sequence data of PBMC
-
-4. Run script mapping.sh
-
- ```{bash}
-create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/
-  ```
-
-5. Run commands in R/Rstudio to create alevin-fry index:
+4.  When we use a script does it will throw an error. Therefore the commands need to be run in Rstudio. Run commands in Rstudio to create alevin-fry index:
 
  ```{bash}
 packages <- c("eisaR", "stringr", "Biostrings", "BSgenome", "GenomicFeatures", "dplyr")
@@ -60,3 +54,19 @@ make_splici_txome(gtf_path=gtf_path,
                   flank_trim_length=flank_trim_length, 
                   output_dir=output_dir)
 ```
+4.1 Create the index in bash
+
+ ```{bash}
+ ${main_outpath}=/path/to/main/output/
+ salmon index \
+    -t ${main_outpath}references/alevin-fry/human/filtered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
+    -i ${main_outpath}references/alevin-fry/human/filtered/grch38_97_bench_splici_idx \
+    -p 16
+ ```
+ 
+## Mapping
+
+5. Run the script mapping.sh
+ ```{bash}
+ mapping.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/ -t 16
+ ```
