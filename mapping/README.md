@@ -78,9 +78,9 @@ make_splici_txome(gtf_path=gtf_path,
  mapping.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/ -t 16
  ```
 
-___
-___
-___
+\
+\
+\
 
 # Description of Files
 
