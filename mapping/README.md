@@ -79,7 +79,6 @@ make_splici_txome(gtf_path=gtf_path,
  ```
 
 \
-
 \
 
 # Description of Files
