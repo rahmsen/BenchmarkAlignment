@@ -1,13 +1,19 @@
-# BenchmarkAlignment
+# Comparative Analysis of common alignment tools for single cell RNA sequencing
 
-This repository contains the scripts for the paper 
+This repository contains all the scripts that where used in the folowing paper:
 
-"Comparative Analysis of common alignment tools for single cell RNA sequencing"
+Bruening et.al. - Comparative Analysis of common alignment tools for single cell RNA sequencing" - Gigascience 2021 [Under Revision]
 
-## Mapping
 
-commands_mapping.txt in mapping/ contains commands to execute the mapping. The folder also includes the neccesary auxiliary scripts.
+The repository contains two main folders. The **"mapping"** folder contains all the scripts and files that are required for the alignment procosees. The **"references"** folder contains the script to download the reference genomes for mouse and human and to generate the mapping indices.
 
-## Creating Figures
+Detailed remarks for the individual files can be found in the ReadMe.md withing the respective folders
 
-make_figures.rmd creates the figures that are included in the paper.
+
+
+
+### Description of Files
+
+* `mapping folder` All required scripts for the Alignments
+* `reference folder` Scripts to download reference genome and create alignment indices
+* `make_figures.rmd` creates the figures that are included in the paper.
