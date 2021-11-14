@@ -5,8 +5,8 @@ date: "4/29/2021"
 output: html_document
 ---
 
-
 ```{r setup, echo = T, results='hide'}
+
 library(reshape2)
 library(Seurat)
 library(ggplot2)
@@ -19,15 +19,27 @@ library(svglite)
 library(SCINA)
 library(ggalluvial)
 library(dplyr)
-#library(future.apply)
-#plan(multicore, workers = 2)
 
+#### Define 
 github_path="/media/Helios_scStorage/Ralf/Benchmark/Gigascience/git/BenchmarkAlignment/"
-main_outpath="/media/Helios_scStorage/Ralf/Benchmark/"
+main_outpath="/media/Storage/Benchmark_test3/"
 setwd(main_outpath)
+
+#### State which datasets should be used ####
+datasets <- c("pbmc_10x")#"Endothelial", "Cardiac", "HF",
+datasets_nice <- c("PBMC")# "Endothelial", "Cardiac", "HF",
+#### Which tool ####
+tools <- c("cellranger6", "starsolo", "alevin-fry", "alevin", "kallisto")
+tools_nice <- c("Cell Ranger 6", "STARsolo", "Alevin-fry", "Alevin", "Kallisto")
+#### and which filtering ####
+filtered <- c("results_filtered_anno")#, "results_unfiltered_anno"
+```
+
+
+```{r import function}
+
 #### Create function to import expression matrices ####
-read_data <- function(dataset_m, tool_m, filtered_m=NULL, sample_m, m_gene_col=2){
-  main_outpath="/media/Helios_scStorage/Ralf/Benchmark"
+read_data <- function(dataset_m, main_outpath, tool_m, filtered_m=NULL, sample_m, m_gene_col=2){
   path_in <- paste(main_outpath, "MappedReads", dataset_m, tool_m, filtered_m, sample_m, sep = "/")
   
   if (grepl("cellranger", tool_m)){
@@ -41,8 +53,8 @@ read_data <- function(dataset_m, tool_m, filtered_m=NULL, sample_m, m_gene_col=2
     data <- Read10X(paste0(path_in, "/Solo.out/Gene/filtered_matrix_emptyDrops/"), gene.column = m_gene_col)
     
   }else if (tool_m == "alevin-fry") {
-    print(paste0(path_in, "/",sample_m, "_quant_res/alevin/"))
-    data <- Read10X(paste0(path_in, "/",sample_m, "_quant_res/alevin/"), gene.column = m_gene_col)
+    print(paste0(path_in, "/",sample_m, "_quant_res/filtered_matrix_emptyDrops/"))
+    data <- Read10X(paste0(path_in, "/",sample_m, "_quant_res/filtered_matrix_emptyDrops/"), gene.column = m_gene_col)
     
   }else if (tool_m=="alevin"){
     if (m_gene_col==2){
@@ -85,7 +97,7 @@ sem <- function(x){
 
 ```{r save seurat objects, echo= T, results='hide'}
 
-save_seurat_objects <- function(dataset, tools, filtered, set_gene_col=2){
+save_seurat_objects <- function(dataset, main_outpath, tools, filtered, set_gene_col=2){
   filtered_data <- list()
   seurat_list <- list()
   for (i in datasets){
@@ -115,7 +127,7 @@ save_seurat_objects <- function(dataset, tools, filtered, set_gene_col=2){
             id_name <- paste(l,j,i,sep="__")
           }
           
-          filtered_data[[id_name]] <- read_data(i,j,k,l,m_gene_col = set_gene_col)
+          filtered_data[[id_name]] <- read_data(i,main_outpath, j,k,l,m_gene_col = set_gene_col)
           seurat_list[[id_name]] <- CreateSeuratObject(filtered_data[[id_name]], project = id_name)
           seurat_list[[id_name]][["percent.mt"]] <- PercentageFeatureSet(seurat_list[[id_name]], 
                                                                          pattern = "^MT-|^mt-")
@@ -126,16 +138,10 @@ save_seurat_objects <- function(dataset, tools, filtered, set_gene_col=2){
   return(seurat_list)
 }
 
-datasets <- c("Endothelial", "Cardiac", "pbmc_10x", "HF")
-datasets_nice <- c("Endothelial", "Cardiac", "PBMC", "HF")
-tools <- c("cellranger6", "starsolo", "alevin-fry", "alevin", "kallisto")
-tools_nice <- c("Cell Ranger 6", "STARsolo", "Alevin-fry", "Alevin", "Kallisto")
-filtered <- c("results_filtered_anno")#, "results_unfiltered_anno"
 
-pbmc_cardiac_endo <- save_seurat_objects(datasets, tools, filtered)
+
+pbmc_cardiac_endo <- save_seurat_objects(datasets, main_outpath, tools, filtered)
 names(pbmc_cardiac_endo) <- gsub("pbmc_10x","PBMC", names(pbmc_cardiac_endo))
-saveRDS(pbmc_cardiac_endo, "/media/Storage/Benchmark/pbmc_cardiac_endo_hf.rds")
-#pbmc_cardiac_endo <- readRDS("/media/Storage/Benchmark/pbmc_cardiac_endo.rds")
 ```
 
 
@@ -165,40 +171,57 @@ get_runtimes <- function(dataset_m){
   runtimes <- lapply(tools, function(x) {
     print(x)
     main_path <- paste("MappedReads/", dataset_m, x, "results_filtered_anno/", sep = "/")
-    runtime_paths <- dir(main_path, pattern = "*runtime*", ignore.case = T, recursive = T)
+    runtime_paths <- dir(main_path, pattern = "runtime", ignore.case = T, recursive = T)
     #print(runtime_paths)
     if (x == "alevin-fry" | dataset_m == "HF" && x=="kallisto"){
-      runtime_paths <- runtime_paths[grep("runtime_sec", runtime_paths)]
+      runtime_paths <- runtime_paths[grep("runtime_sec|runtime_empty_drops.txt", runtime_paths)]
     }else if (x %in% c("cellranger6", "starsolo")){
-      runtime_paths <- runtime_paths[grep("runtime.txt", runtime_paths)]
+      runtime_paths <- runtime_paths[grep("runtime.txt|runtime_empty_drops.txt", runtime_paths)]
+
+      
     }
-    
-    print(runtime_paths)
-    run <- lapply(runtime_paths, function(p) {
-      r <- readLines(paste0(main_path, p))
-      if (x == "alevin-fry" | dataset_m == "HF" && x=="kallisto"){
-        r <- as.integer(r)/60
+    if (x != "alevin"){
+      test_split <- strsplit(runtime_paths[seq(1,length(runtime_paths), by=2)],"/")
+      sample_names <- lapply(test_split, function(x) x[1])
+    }else{
+      test_split <- strsplit(runtime_paths, "/")
+      sample_names <- lapply(test_split, function(x) x[1])
+    }
+
+    runtime_list <- list()
+    for (i in sample_names){
+        test_grep<- runtime_paths[grep(i, runtime_paths)]
+        run <- lapply(test_grep, function(p) {
+      
+        r <- readLines(paste0(main_path, p))
+        if (grepl("sec",p)  && (x == "alevin-fry" | x=="kallisto" )){
+            print("second")
+            print(r)
+            r <- as.integer(r)/60
         
-      }else{
-        r <- unlist(strsplit(r[grep("real", r)], "\t|m|[.]|,"))
-        r <- as.integer(r[2]) + as.integer(r[3])/60
-      }
-      r
-    })
-    
-    run
+        }else{
+            #grep line with real runtime
+            r <- unlist(strsplit(r[grep("real", r)], "\t|m|[.]|,"))
+            r <- as.integer(r[2]) + as.integer(r[3])/60
+        }
+      
+        r
+         })
+    runtime_list[[paste(i)]] <- sum(unlist(run))
+    }
+    runtime_list
   })
   names(runtimes) <- tools
   runtimes
 }
 
-all_runtimes <- list(PBMC = get_runtimes(datasets[1]),
-     Endothelial = get_runtimes(datasets[2]),
-     Cardiac = get_runtimes(datasets[3]),
-     HF = get_runtimes(datasets[4]))
+all_runtimes <- lapply(datasets, function(x) {
+  get_runtimes(x)
+})
+names(all_runtimes) <- datasets
 
 
-
+# parse data for ggplot
 all_runtimes_melt <- melt(all_runtimes)
 colnames(all_runtimes_melt) <- c("Runtime", "sample_no", "Mapper", "Dataset")
 
@@ -210,14 +233,14 @@ runtime_mean[3:4] <- runtime_mean[3:4]/60
 colnames(runtime_mean)[3] <- "mean"
 runtime_mean$Mapper <- factor(runtime_mean$Mapper, levels = tools)
 levels(runtime_mean$Mapper) <- tools_nice
-runtime_mean$Dataset <- factor(runtime_mean$Dataset, levels = datasets_nice)
-
+runtime_mean$Dataset <- factor(runtime_mean$Dataset)
+levels(runtime_mean$Dataset) <- datasets_nice
 Figure_1[["runtime"]] <- plot_mapping_performance(runtime_mean, 4, "Runtime (h)")
 
 
 
 
-# create dataset for ploting
+# create dataset for plotting
 create_plot_data <- function(data, datasets_nice, tools, tools_nice){
   data_melt <- melt(data)
   meta_data <- do.call(rbind, strsplit(data_melt$L1, "__"))
@@ -243,13 +266,12 @@ create_plot_data <- function(data, datasets_nice, tools, tools_nice){
 genes_per_cell <- lapply(pbmc_cardiac_endo, function(x) x$nFeature_RNA)
 
 plot_data_genes_per_cell <- create_plot_data(genes_per_cell, datasets_nice, tools, tools_nice)
-#saveRDS(genes_per_cell, "/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/genes_per_cell.rds")
+
 Figure_1[["genes_per_cell"]] <- plot_mapping_performance(plot_data_genes_per_cell, 2000, "Genes per cell")
 
 
 #### Cell count ####
 ncells <- lapply(pbmc_cardiac_endo, function(x) ncol(x))
-#saveRDS(ncells, "/media/Storage/additional_datasets/intermediate_data/second_submission/figure1/ncells.rds")
 
 plot_data_ncells <- create_plot_data(ncells, datasets_nice, tools, tools_nice)
 
@@ -305,10 +327,11 @@ mapping_rate
 }
 
 
-all_mapping_rates <- list(PBMC = get_mapping_rate(datasets[1]),
-     Endothelial = get_mapping_rate(datasets[2]),
-     Cardiac = get_mapping_rate(datasets[3]),
-     HF = get_mapping_rate(datasets[4]))
+all_mapping_rates <- lapply(datasets, function(x) {
+  get_mapping_rate(x)
+})
+names(all_mapping_rates) <- datasets
+
 
 all_mapping_rates_melt <- melt(all_mapping_rates)
 colnames(all_mapping_rates_melt) <- c("mapping_rate", "sample_no", "Mapper", "Dataset")
@@ -334,8 +357,6 @@ ggsave(paste0(main_outpath, "plots_revision/Figure_1_hf.svg"), device = "svg", w
 
 ```{r Suppl Figure 1}
 #library(egg)
-
-#pbmc_cardiac_endo <- readRDS("/media/Storage/additional_datasets/pbmc_cardiac_endo.rds")
 
 plot_data <- lapply(pbmc_cardiac_endo, function(x) {
   list(genes = x$nFeature_RNA,
@@ -516,7 +537,6 @@ ggsave("plots_revision/tmp/upset/barplot_barcodes_hf.svg", p_upset_bc,
 
 
 #### Make Density plot for Suppl Fig 2 ####
-#pbmc_cardiac_endo <- readRDS("/media/Storage/additional_datasets/pbmc_cardiac_endo.rds")
 
 # complete data
 plot_data <- lapply(pbmc_cardiac_endo, function(x) {
@@ -623,10 +643,10 @@ pbmc_cardiac_endo_id <- save_seurat_objects(datasets, tools, filtered, 1)
 names(pbmc_cardiac_endo_id) <- gsub("pbmc_10x","PBMC", names(pbmc_cardiac_endo_id))
 
 
-all_genes_mouse <- read.table(paste0(github_path, "mapping/all_genes_mouse.tsv"),
+all_genes_mouse <- read.table(paste0(github_path, "mapping/post_mapping/all_genes_mouse.tsv"),
                                      header = T,  colClasses = c(rep("character",4)))
 
-all_genes_human <- read.delim(paste0(github_path, "mapping/all_genes_human.tsv"),
+all_genes_human <- read.delim(paste0(github_path, "mapping/post_mapping/all_genes_human.tsv"),
                               header = T,  colClasses = c(rep("character",4)))
 
 gene_counts <- lapply(pbmc_cardiac_endo_id, function(x) {
@@ -634,8 +654,7 @@ gene_counts <- lapply(pbmc_cardiac_endo_id, function(x) {
   gene_count <- gene_count[gene_count > 0]
   gene_count
 })
-saveRDS(gene_counts, "/media/Helios_scStorage/Ralf/Benchmark/plots_revision/intermediate_data/suppl_figure3gene_counts.rds")
-gene_counts <- readRDS("/media/Helios_scStorage/Ralf/Benchmark/plots_revision/intermediate_data/suppl_figure3gene_counts.rds")
+
 pbmc_biotypes <- lapply(gene_counts[grep("PBMC", names(gene_counts))], function(x) {
   if (grepl("\\.",names((x))[1]) ){
     biotype <- all_genes_human[all_genes_human$ID_type %in% names(x),]
@@ -730,8 +749,6 @@ biotypes_long_long_endo <- biotypes_long_long[biotypes_long_long$Dataset=="Endot
 
 biotypes_long_long2 <- rbind(biotypes_long_long_pbmc, biotypes_long_long_cardiac, biotypes_long_long_endo)
 #biotypes_long_long <- biotypes_long_long[biotypes_long_long$value>0,]
-saveRDS(biotypes_long_long2, "/media/Storage/additional_datasets/intermediate_data/suppl_figure3_biotypes.rds")
-
 
 biotypes_long_long_aggr <- aggregate(value ~ Mapper + Dataset + Filtering + Biotype, data = biotypes_long_long2, mean)
 
@@ -793,7 +810,6 @@ cardiac_endo_genes_vmn_olfr <- get_counts_vmn_olfr(pbmc_cardiac_endo[grep("PBMC|
 pbmc_genes_vmn_olfr <- get_counts_vmn_olfr(pbmc_cardiac_endo[grep("PBMC|HF",names(pbmc_cardiac_endo), invert = F)], "human")
 
 genes_vmn_olfr <- c(cardiac_endo_genes_vmn_olfr, pbmc_genes_vmn_olfr)
-#saveRDS(genes_vmn_olfr, "/media/Storage/additional_datasets/intermediate_data/figure3_vmn_olfr/cardiac_endo_pbmc.rds")
 
 #### plot histograms ####
 figure3_list <- list()
@@ -878,11 +894,7 @@ pbmc_cardiac_endo <- lapply(pbmc_cardiac_endo, function(x) {
   })
 
 
-#saveRDS(pbmc_cardiac_endo, "/media/Storage/Benchmark/pbmc_cardiac_endo_sctransform.rds")
-#pbmc_cardiac_endo <- readRDS("/media/Storage/Benchmark/pbmc_cardiac_endo_sctransform.rds")
 integrated_data <- list()
-
-
 integrated_data[["PBMC"]] <- lapply(tools, function(x) {
   integrate_per_mapper(pbmc_cardiac_endo[grep(paste0(x,"__PBMC"), names(pbmc_cardiac_endo))], 
                        paste("PBMC_integration", x, sep = "_"), 20, 0.15)
@@ -906,12 +918,9 @@ integrated_data[[data_name]] <- lapply(tools, function(x) {
                        paste(data_name, "integration", x, sep = "_"), 20, 0.15)
 })
 
-#saveRDS(integrated_data, "/media/Storage/Benchmark/integrated_data_HF.rds")
-integrated_data<- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac.rds")
 names(integrated_data$PBMC) <- tools_nice
 names(integrated_data$Cardiac) <- tools_nice
 names(integrated_data$HF) <- tools_nice
-#saveRDS(integrated_data["Endothelial"], "/media/Storage/Benchmark/integrated_data_endothelial.rds")
 integrated_data$PBMC <- lapply(integrated_data$PBMC, function(x) {
   DefaultAssay(x) <- "SCT"
   x
@@ -931,11 +940,9 @@ lapply(integrated_data, function(x) {
       ggsave(paste0(main_outpath, "plots_revision/tmp/umap/umap_", Project(p), ".png"))
   })
 })
-integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_HF.rds")
 
 
 integrated_data$PBMC <- lapply(integrated_data$PBMC, function(x) {
-  
   x <- RunPCA(x, verbose = FALSE)
   x <- RunUMAP(x, dims = 1:20, verbose = FALSE)
   x <- FindNeighbors(x, dims = 1:20, verbose = FALSE)
@@ -2519,10 +2526,10 @@ filtered <- c("results_filtered_anno", "results_unfiltered_anno")
 pbmc_cardiac_endo <- save_seurat_objects(datasets, tools, filtered, 1)
 names(pbmc_cardiac_endo) <- gsub("pbmc_10x","PBMC", names(pbmc_cardiac_endo))
 
-all_genes_mouse <- read.table(paste0(github_path, "mapping/all_genes_mouse.tsv"), 
+all_genes_mouse <- read.table(paste0(github_path, "mapping/post_mapping/all_genes_mouse.tsv"), 
                               sep = "\t",colClasses = c(rep("character",4)))
 
-all_genes_human <- read.delim(paste0(github_path, "mapping/all_genes_human.tsv"),
+all_genes_human <- read.delim(paste0(github_path, "mapping/post_mapping/all_genes_human.tsv"),
                               header = F,colClasses = c(rep("character",4)))
 
 gene_counts <- lapply(filtered_data_seurat_obj, function(x) {

@@ -37,7 +37,7 @@ gunzip ${whitelist_dir}3M-february-2018.txt.gz
 app_dir=${main_outpath}software/
 export PATH=${app_dir}cellranger/cellranger-6.0.2/:$PATH
 export PATH=${app_dir}starsolo/STAR-2.7.3a/bin/Linux_x86_64_static/:$PATH
-export PATH=${app_dir}alevin/salmon-latest_linux_x86_64/bin/:$PATH
+export PATH=${app_dir}alevin/salmon-1.5.1_linux_x86_64/bin/:$PATH
 export PATH=${app_dir}kallisto/kallisto/:$PATH
 export PATH=${app_dir}kallisto/bustools/:$PATH
 
@@ -117,14 +117,14 @@ export PATH=${app_dir}kallisto/bustools/:$PATH
 			--sjdbGTFfile ../Homo_sapiens.GRCh38.97_cellranger_filtered.gtf \
 			--genomeFastaFiles ../Homo_sapiens.GRCh38.dna.primary_assembly.fa
 
-			mkdir ${main_outpath}references/mouse/starsolo/ ${main_outpath}references/mouse/starsolo/index_filtered
-            cd ${main_outpath}references/mouse/starsolo/
-
-			STAR --runMode genomeGenerate \
-			--runThreadN $threads \
-			--genomeDir ${main_outpath}references/mouse/starsolo/index_filtered \
-			--sjdbGTFfile ../Mus_musculus.GRCm38.97_cellranger_filtered.gtf \
-			--genomeFastaFiles ../Mus_musculus.GRCm38.dna.primary_assembly.fa
+			#mkdir ${main_outpath}references/mouse/starsolo/ ${main_outpath}references/mouse/starsolo/index_filtered
+            #cd ${main_outpath}references/mouse/starsolo/
+#
+			#STAR --runMode genomeGenerate \
+			#--runThreadN $threads \
+			#--genomeDir ${main_outpath}references/mouse/starsolo/index_filtered \
+			#--sjdbGTFfile ../Mus_musculus.GRCm38.97_cellranger_filtered.gtf \
+			#--genomeFastaFiles ../Mus_musculus.GRCm38.dna.primary_assembly.fa
 
 
 	    #2.2.4 Create Index for Salmon
@@ -177,17 +177,19 @@ export PATH=${app_dir}kallisto/bustools/:$PATH
 
 	    #2.2.5 Create Index for Alevin-fry
 	        mkdir ${main_outpath}references/human/alevin-fry/
-            #cd ${main_outpath}references/human/alevin-fry/
+	        mkdir ${main_outpath}references/human/alevin-fry/filtered/
+            cd ${main_outpath}references/human/alevin-fry/
             # Scripts from https://github.com/COMBINE-lab/usefulaf
-			#Rscript --vanilla ${github_path}mapping/create_splici_index.R \
-            #    ${main_outpath}references/human/cellranger/GRCh38_97/ \
-            #    ${main_outpath}references/human/alevin-fry/ \
-            #    ${github_path}mapping/
+			Rscript --vanilla ${github_path}mapping/alevin_index/build_splici_ref.R \
+                ${main_outpath}references/human/cellranger/GRCh38_97/fasta/genome.fa \
+                ${main_outpath}references/human/cellranger/GRCh38_97/genes/genes.gtf.gz \
+                91 \
+                ${main_outpath}references/human/alevin-fry/filtered/
 
-            #salmon index \
-            #    -t ${main_outpath}references/alevin-fry/human/filtered/transcriptome_splici_fl86/transcriptome_splici_fl86.fa \
-            #    -i ${main_outpath}references/alevin-fry/human/filtered/grch38_97_bench_splici_idx \
-            #    -p $threads
+            salmon index \
+                -t ${main_outpath}references/human/alevin-fry/filtered/transcriptome_splici_fl86.fa \
+                -i ${main_outpath}references/human/alevin-fry/filtered/grch38_97_bench_splici_idx \
+                -p $threads
 
             #mkdir ${main_outpath}references/mouse/alevin-fry/
 

@@ -1,3 +1,4 @@
+
 make_splici_txome <- function(gtf_path,
                               genome_path,
                               read_length,
@@ -21,7 +22,6 @@ make_splici_txome <- function(gtf_path,
     library(Biostrings)
     library(BSgenome)
     library(stringr)
-    library(dplyr)
     library(GenomicFeatures)
   })
 

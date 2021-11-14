@@ -57,58 +57,64 @@ for sampledir in ${SAMPLEDIRS[*]}; do
 	#run command
 	#Alignement 
 	echo "Run Alevin-fry for ${SAMPLENAME}"
-	echo "salmon alevin -i ${index} \
+	echo "salmon alevin -i ${index}grch38_97_bench_splici_idx/ \
     -p $thread \
-    -l IU $technology\
+    -l IU $technology \
     --rad \
     -1 $READ1 \
     -2 $READ2 \
     -o ${outFolderSample}_map >> ${outFolderSample}${SAMPLENAME}log.txt 
 
-#processing
-alevin-fry generate-permit-list -d fw -k \n
-    -i ${outFolderSample}${SAMPLENAME}_map \n
-    -o ${outFolderSample}${SAMPLENAME}_quant >> ${outFolderSample}${SAMPLENAME}log.txt 
-
-#collate the file
-alevin-fry collate -t $thread \n
-    -i ${outFolderSample}${SAMPLENAME}_quant \n
-    -r ${outFolderSample}${SAMPLENAME}_map >> ${outFolderSample}${SAMPLENAME}log.txt 
-
-alevin-fry quant -t $thread -i ${outFolderSample}${SAMPLENAME}_quant \n
-    -o ${outFolderSample}${SAMPLENAME}_quant_res \n
-    --tg-map ${index}transcriptome_splici_fl86/transcriptome_splici_fl86_t2g_3col.tsv \n
-    --resolution cr-like \n
-    --use-mtx >> ${outFolderSample}${SAMPLENAME}log.txt " >> ${outFolderSample}${SAMPLENAME}"commands_Alevin-fry.txt"
-
-SECONDS=0
-{ time $( salmon alevin -i ${index}grch38_97_bench_splici_idx \
-    -p $thread \
-    -l IU $technology\
-    --rad \
-    -1 $READ1 \
-    -2 $READ2 \
-    -o ${outFolderSample}${SAMPLENAME}_map
-
-#processing
-alevin-fry generate-permit-list -d fw -k \
-    -i ${outFolderSample}${SAMPLENAME}_map \
-    -o ${outFolderSample}${SAMPLENAME}_quant
-
-#collate the file
-alevin-fry collate -t $thread \
-    -i ${outFolderSample}${SAMPLENAME}_quant \
-    -r ${outFolderSample}${SAMPLENAME}_map
-
-alevin-fry quant -t $thread -i ${outFolderSample}${SAMPLENAME}_quant \
-    -o ${outFolderSample}${SAMPLENAME}_quant_res \
-    --tg-map ${index}transcriptome_splici_fl86/transcriptome_splici_fl86_t2g_3col.tsv \
-    --resolution cr-like \
-    --use-mtx ) > ${outFolderSample}${SAMPLENAME}log.txt ; } 2> ${outFolderSample}${SAMPLENAME}runtime.txt
-
+    #processing
+    alevin-fry generate-permit-list -d fw -k \n
+        -i ${outFolderSample}${SAMPLENAME}_map \n
+        -o ${outFolderSample}${SAMPLENAME}_quant >> ${outFolderSample}${SAMPLENAME}log.txt 
+    
+    #collate the file
+    alevin-fry collate -t $thread \n
+        -i ${outFolderSample}${SAMPLENAME}_quant \n
+        -r ${outFolderSample}${SAMPLENAME}_map >> ${outFolderSample}${SAMPLENAME}log.txt 
+    
+    alevin-fry quant -t $thread -i ${outFolderSample}${SAMPLENAME}_quant \n
+        -o ${outFolderSample}${SAMPLENAME}_quant_res \n
+        --tg-map ${index}transcriptome_splici_fl86/transcriptome_splici_fl86_t2g_3col.tsv \n
+        --resolution cr-like \n
+        --use-mtx >> ${outFolderSample}${SAMPLENAME}log.txt " >> ${outFolderSample}${SAMPLENAME}"commands_Alevin-fry.txt"
+    
+    SECONDS=0
+    { time $( salmon alevin -i ${index}grch38_97_bench_splici_idx/ \
+        -p $thread \
+        -l IU $technology \
+        --rad \
+        -1 $READ1 \
+        -2 $READ2 \
+        -o ${outFolderSample}${SAMPLENAME}_map
+    
+    #processing
+    alevin-fry generate-permit-list -d fw -k \
+        -i ${outFolderSample}${SAMPLENAME}_map \
+        -o ${outFolderSample}${SAMPLENAME}_quant
+    
+    #collate the file
+    alevin-fry collate -t $thread \
+        -i ${outFolderSample}${SAMPLENAME}_quant \
+        -r ${outFolderSample}${SAMPLENAME}_map
+    
+    alevin-fry quant -t $thread -i ${outFolderSample}${SAMPLENAME}_quant \
+        -o ${outFolderSample}${SAMPLENAME}_quant_res \
+        --tg-map ${index}transcriptome_splici_fl86_t2g_3col.tsv \
+        --resolution cr-like \
+        --use-mtx ) > ${outFolderSample}${SAMPLENAME}log.txt ; } 2> ${outFolderSample}${SAMPLENAME}runtime.txt
+    
+    Rscript --vanilla /media/Helios_scStorage/Ralf/Benchmark/Gigascience/Skripte/filter_raw_emptyDrops.R \
+        ${outFolderSample}${SAMPLENAME}_quant_res/ \
+        ${outFolderSample}${SAMPLENAME}_quant_res/alevin/ \
+        "alevin-fry" \
+        "emptyDrops" $thread
+    
     echo $SECONDS > ${outFolderSample}${SAMPLENAME}runtime_sec.txt
-
-	let i++
+    
+    let i++
 
 done
 

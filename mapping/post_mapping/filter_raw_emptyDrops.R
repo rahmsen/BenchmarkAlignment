@@ -106,12 +106,14 @@ load_fry <- function(frydir, which_counts = c('S','A'), verbose = FALSE) {
 
 }
 
+
 knee_filter <- function(m_data){
   tot_counts <- Matrix::colSums(m_data)
   bc_rank <- barcodeRanks(m_data)
   data_filtered <- m_data[, tot_counts > metadata(bc_rank)$inflection]
   return(data_filtered)
 }
+
 
 emptydrop_filter <- function(x) {
   set.seed(185463)
@@ -132,6 +134,7 @@ emptydrop_filter <- function(x) {
   
   return(list(data_filtered, cell_count, table))
 }
+
 
 filter_data <- function(m_data, m_method, m_tool, m_out_path){
   # Filter the data set with the "Knee" method from the DropletUtils package
@@ -178,6 +181,7 @@ filter_data <- function(m_data, m_method, m_tool, m_out_path){
   }
   cat("Done.\n")
 }
+
 
 ## Actual execution ##
 cat("Reading data.\n")
