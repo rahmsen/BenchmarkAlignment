@@ -1,4 +1,4 @@
-# Analyze 10X PBMC's with Alevin, Star, Kalisto & Cellranger
+# Analyze 10X PBMC's with Alevin, Alevin-fry, STARsolo, Kallisto & Cell Ranger
 
 ###  Download and install all mapper
 
@@ -7,9 +7,9 @@
  ```{bash}
 downloadSoftware.sh -o path/to/main/output/
   ```
-2. Download and unpack CellRanger 6 from the [10x website](https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/6.0) to the directory **../software/cellranger** 
+2. Download and unpack Cell Ranger 6 from the [10x website](https://support.10xgenomics.com/single-cell-gene-expression/software/downloads/6.0) to the directory **../software/cellranger** 
 
-**Note**: We could not include Cellranger to the donwload script, as it requires a registration.
+**Note**: We could not include Cell Ranger to the download script, as it requires a registration.
 
 
 ### Create index for each tool and download sequence data of PBMC
@@ -22,7 +22,7 @@ create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -
 
 ### Mapping
 
-4. If all the tools are installed and the indices were succesfully generated the following command will run the PBMC dataset with all mappers mentioned in the paper.
+4. If all the tools are installed and the indices were successfully generated the following command will run the PBMC dataset with all mappers mentioned in the paper.
 
  ```{bash}
  mapping.sh -o /path/to/main/output/ -g /path/to/github/dir/ -w /path/to/whitelist/ -t 16
@@ -50,9 +50,9 @@ create_index_download_data.sh -o /path/to/main/output/ -g /path/to/github/dir/ -
 
 
 ### Post mapping
-* `Adjust_gene_names_both_organism.R`, `adjust_geneNames.sh` write the gene ID in the barcodes files asocciated with the count matrices.
-* `all_genes_mouse.tsv`, `all_genes_human.tsv` contain the gene symbol to gene ID maping to include the gene ID in `Adjust_gene_names_both_organism.R`
-* `filter_raw_emptyDrops.R` Will execute the emptyDrops cell filtering for a mapper. For Alevin-fry it will filter for the spliced and ambigouse read counts and write out as mtx-files to be loaded into R in the script `make_figures.rmd`.
+* `Adjust_gene_names_both_organism.R`, `adjust_geneNames.sh` write the gene ID in the barcodes files associated with the count matrices.
+* `all_genes_mouse.tsv`, `all_genes_human.tsv` contain the gene symbol to gene ID mapping to include the gene ID in `Adjust_gene_names_both_organism.R`
+* `filter_raw_emptyDrops.R` Will execute the emptyDrops cell filtering for a mapper. For Alevin-fry it will filter for the spliced and ambiguous read counts and write out as mtx-files to be loaded into R in the script `make_figures.rmd`.
 
 
 
