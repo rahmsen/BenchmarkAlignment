@@ -982,7 +982,7 @@ marker_genes <- marker_genes[-c(49)]
 for (m in seq_along(marker_genes)){
   p_marker<- DotPlot(integrated_data$HF$`Cell Ranger 6`, features = marker_genes[[m]], assay = "RNA") +
     theme(axis.text.x = element_text(angle = 60,vjust=+1.05 ,hjust = +1.1))
-  ggsave(paste0("/media/Helios_scStorage/Ralf/Benchmark/plots_revision/tmp/marker_genes/HF/", names(marker_genes)[m] , ".svg"), p_marker, device = "svg")
+  ggsave(paste0("plots_revision/tmp/marker_genes/HF/", names(marker_genes)[m] , ".svg"), p_marker, device = "svg")
 }
 DotPlot(seurat_object, features = marker_genes[1:5])
 
@@ -1238,12 +1238,9 @@ plot_heatmap <- function(data_m, title_name){
 
 #### Create plots ####
 figure6 <- list()
-integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
-saveRDS(integrated_data, "/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
 
 #### PBMC ####
 scina_pbmc <- scina_classi(integrated_data$PBMC, cell_type_genes_pbmc)
-#saveRDS(cell_classification_scina, "/media/Storage/additional_datasets/intermediate_data/figure6/suppl_figure6_scina_classification_pbmc.rds")
 
 barcode_ident <- merge_list(scina_pbmc)
 confident_cell_type_pbmc_all <- major_vote(barcode_ident)
@@ -1255,7 +1252,6 @@ figure6$pbmc <- plot_heatmap(results_pbmc, "PBMC")
 #### Cardiac ####
 
 scina_cardiac <- scina_classi(integrated_data$Cardiac, cell_type_genes_cardiac)
-#saveRDS(cell_classification_scina, "/media/Storage/additional_datasets/intermediate_data/figure6/suppl_figure6_scina_classification_cardiac.rds")
 barcode_ident <- merge_list(scina_cardiac)
 confident_cell_type_cardiac_all <- major_vote(barcode_ident)
 confident_cell_type_cardiac <- confident_cell_type_cardiac_all[confident_cell_type_cardiac_all$n_prim_type >= 2,] # For Suppl. Figure 5 ,7
@@ -1311,7 +1307,6 @@ ggsave("plots_revision/Suppl_figure_7_precision_0.svg", device = "svg", height =
 
 #heatmap_metric <- results %>% group_by(Tool) %>% filter(Barcode_overlap>0.05) %>% summarise(mean = mean(Barcode_overlap))
 overlap_per_tool_cell_type <- data.frame(results %>% group_by(Tool,SCINA_cell_types) %>% summarise(sum = sum(Barcode_overlap))) #When looking for the entire overlap per tool
-write.table(overlap_per_tool_cell_type,"/media/Storage/additional_datasets/plots/pbmc/Overlaps_unfiltered_for_fig_3_with_unknown.csv",sep = ",",row.names = F,quote = F)
 #heatmap_metric <- data.frame(results %>% group_by(Tool) %>% filter(Barcode_overlap>0.05))
 #heatmap_metric <- data.frame(heatmap_metric)[c(4:7,9:10),]
 heatmap_metric <- data.frame(results %>% group_by(Tool))
@@ -1323,7 +1318,7 @@ ggplot(colapsed_cluster_values, aes(x=SCINA_cell_types,y=factor(Tool,levels = c(
   geom_tile(aes(fill = Barcode_overlap)) + 
   geom_text(aes(label = round(Barcode_overlap, 3)*100)) + ylab("Tools") + 
   theme(axis.text.x = element_text(angle = 60, vjust=+1.05 , hjust = +1.1))
-#ggsave("/media/Storage/additional_datasets/plots/pbmc/overlap_per_cell_type_and_tool.svg",device = "svg")
+
 aggregate(Barcode_overlap ~ Tool,colapsed_cluster_values,mean)
 #         Tool Barcode_overlap
 #1 Cell Ranger       0.7464897
@@ -1391,7 +1386,6 @@ cluster2celltype <- function(data_m, tool_name){
 #                    kallisto_celltypes = cluster2celltype(results_pbmc, "Kallisto"))
 # 
 # 
-# integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
 # 
 # for (i in seq(integrated_data$PBMC)){
 #   integrated_data$PBMC[[i]]$celltypes <- integrated_data$PBMC[[i]]$seurat_clusters
@@ -1492,7 +1486,6 @@ get_plot <- function(data_m){
 
 
 #### Create plots ####
-integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
 p_bc_recall_prec_f1 <- list()
 #### PBMC ####
 
@@ -1638,7 +1631,6 @@ ggsave("plots_revision/tmp/F1_score_Cardiac.svg", p_f1, device = "svg", height =
 ```{r sankey and barplot for reviewer comment}
 #### PBMC ####
 # scina_pbmc <- scina_classi(integrated_data$PBMC, cell_type_genes_pbmc)
-# #saveRDS(cell_classification_scina, "/media/Storage/additional_datasets/intermediate_data/figure6/suppl_figure6_scina_classification_pbmc.rds")
 # 
 # barcode_ident <- merge_list(scina_pbmc)
 # confident_cell_type_pbmc_alluv <- major_vote(barcode_ident)
@@ -1669,11 +1661,10 @@ ggsave("plots_revision/tmp/F1_score_Cardiac.svg", p_f1, device = "svg", height =
 #         panel.grid.major.x = element_blank())
 # 
 # 
-# ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots_revision/tmp/barcodes_per_tool_pbmc.svg")
+# ggsave("plots_revision/tmp/barcodes_per_tool_pbmc.svg")
 # #### Cardiac ####
 # 
 # scina_cardiac <- scina_classi(integrated_data$Cardiac, cell_type_genes_cardiac)
-# #saveRDS(cell_classification_scina, "/media/Storage/additional_datasets/intermediate_data/figure6/suppl_figure6_scina_classification_cardiac.rds")
 # barcode_ident <- merge_list(scina_cardiac)
 # confident_cell_type_cardiac_alluv <- major_vote(barcode_ident)
 # 
@@ -1701,7 +1692,7 @@ ggsave("plots_revision/tmp/F1_score_Cardiac.svg", p_f1, device = "svg", height =
 #   theme(text = element_text(size = 14),
 #         panel.grid.major.x = element_blank())
 # 
-# ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots_revision/tmp/barcodes_per_tool_cardiac.svg")
+# ggsave("plots_revision/tmp/barcodes_per_tool_cardiac.svg")
 
 
 
@@ -1867,7 +1858,6 @@ ggsave("plots_revision/Suppl_Figures/Suppl_figure_5_hf.svg", device = "svg", wid
 ```{r create DEGs}
 
 
-integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
 figure4_plotlist <- list()
 #### PBMC ####
 
@@ -2117,7 +2107,6 @@ ggsave("plots_revision/tmp/log2FC_cellranger_vs_other_scatter.svg",
 
 
 ```{r Figure 4 DEG}
-integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
 
 new_clus_id<- list(
   cellranger6_celltypes=c("0"="T-cells CD4+","1"="T-cells CD4+","2"="Monocytes","3"="NK-cells","4"="NKT-cells",
@@ -2316,9 +2305,9 @@ for (i in datasets){
     }
   }
 }
+
 filtered <- c("results_filtered_anno")
 pbmc_cardiac_endo <- save_seurat_objects(datasets, tools, filtered)
-pbmc_cardiac_endo <- readRDS("/media/Storage/Benchmark/pbmc_cardiac_endo.rds")
 names(pbmc_cardiac_endo) <- paste0(names(pbmc_cardiac_endo), "__filtered")
 names(pbmc_cardiac_endo) <- gsub("pbmc_10x","PBMC", names(pbmc_cardiac_endo))
 
@@ -2345,7 +2334,6 @@ mt_long$Mapper <- factor(mt_long$Mapper, levels = tools)
 levels(mt_long$Mapper) <- tools_nice
 mt_long$Filtering <- factor(mt_long$Filtering)
 levels(mt_long$Filtering) <- c("Filtered", "Unfiltered")
-saveRDS(mt_content, "/media/Storage/additional_datasets/intermediate_data/suppl_figure8_mt_content.rds")
 
 
 ggplot(mt_long, aes(x = Mapper, y = value, color = Filtering)) +
@@ -2384,7 +2372,7 @@ p_mt_change <- ggplot(mt_content,aes(x = genes, y = read_count, fill = read_fate
   xlab("Mitochondrial genes") +
   ylab("Read count")
 
-ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots/tmp/figure8b_barplot_reads.svg", p_mt_change, device = "svg", height = 5,width = 10)
+ggsave("plots_revision/tmp/figure8b_barplot_reads.svg", p_mt_change, device = "svg", height = 5,width = 10)
 
 ```
 
@@ -2393,7 +2381,6 @@ Cluster the cells to see if the cells from the mapping with the unfiltered
 annotation lie within the other clusters or form a specific new cluster 
 indicating non valid cells.
 ```{r Suppl Figure 8c New barcodes}
-results_dir <- "/media/Helios_scStorage/Ralf/MouseHom_AMI/Results/"
 
 # get new barcodes
 get_mt_gene_count <- function(m_filtered_data){
@@ -2483,11 +2470,11 @@ cluster_plot[[1]][["theme"]][["text"]][["size"]] <- 27
 cluster_plot[[1]][["theme"]][["legend.text"]][["size"]] <- 30
 cluster_plot[[1]][["theme"]][["axis.text"]][["size"]] <- 20
 #cluster_plot[[1]][["data"]][["mapping"]] <- factor(cluster_plot[[1]][["data"]][["mapping"]],levels = c("Filtered","New cells","Lost cells"))
-png("/media/Helios_scStorage/Ralf/Benchmark/plots/tmp/suppl_figure8_umap_new_cells.png",width = 1300, height = 800)
+png("plots_revision/tmp/suppl_figure8_umap_new_cells.png",width = 1300, height = 800)
 cluster_plot
 dev.off()
 
-ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots/tmp/suppl_figure8_umap_new_cells.png", cluster_plot2[[1]], device="png", width = 8, height = 5)
+ggsave("plots_revsion/tmp/suppl_figure8_umap_new_cells.png", cluster_plot2[[1]], device="png", width = 8, height = 5)
 
 ```
 
@@ -2611,7 +2598,6 @@ biotypes_long_long_endo <- biotypes_long_long_endo[biotypes_long_long_endo$Mappe
 
 biotypes_long_long2 <- rbind(biotypes_long_long_pbmc, biotypes_long_long_cardiac, biotypes_long_long_endo)
 #biotypes_long_long <- biotypes_long_long[biotypes_long_long$value>0,]
-saveRDS(biotypes_long_long2, "/media/Storage/additional_datasets/intermediate_data/suppl_figure3_biotypes.rds")
 
 
 biotypes_long_long_aggr <- aggregate(value ~ Mapper + Dataset + Filtering + Biotype, data = biotypes_long_long2, mean)
@@ -2630,15 +2616,13 @@ ggplot(biotypes_long_long_aggr, aes(x = Biotype, y = value, color = Mapper, shap
         panel.grid = element_blank())
 
 
-ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots/second_submission_plots/Suppl_Figures/Suppl_figure_3/Suppl_figure_3_CR5.svg", device = "svg", width = 13, height = 5)
+ggsave("plots_revision/second_submission_plots/Suppl_Figures/Suppl_figure_3/Suppl_figure_3_CR5.svg", device = "svg", width = 13, height = 5)
 
 ```
 
 ```{r Suppl. Figure 4 Heatmaps}
 # Graph for Vmn gene family will not be created because in humans it is
 # not highly expressed. You do not see much in the heatmap.
-pbmc_integrated <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc.rds")
-pbmc_integrated <- pbmc_integrated[c(1,5,2,3,4)]
 
 p_heat <- lapply(pbmc_integrated$PBMC, function(x) {
   DefaultAssay(x) <-"RNA"

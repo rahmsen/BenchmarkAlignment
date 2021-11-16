@@ -48,11 +48,11 @@ load_fry <- function(frydir, which_counts = c('S','A'), verbose = FALSE) {
   
   o@Dimnames <- list(afc$barcodes, afg$gene_ids)
   
-  return(o)
+  return(t(o))
 
 }
 
 fry_data <- load_fry(file_path_in)
 
 
-
+write10xCounts(file_path_out, fry_data, version = "3")

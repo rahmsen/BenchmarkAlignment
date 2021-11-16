@@ -244,7 +244,7 @@ done
 
 
 # STARsolo
-for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/starsolo/results_filtered_anno/sample4/Solo.out/Gene/`; do
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/starsolo/results_filtered_anno/sample*/Solo.out/Gene/`; do
     gzip ${i}raw/barcodes.tsv ${i}raw/features.tsv ${i}raw/matrix.mtx &&\
 	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R ${i}raw/ $i "starsolo" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt &&\
 	mv ${i}filtered_matrix_emptyDrops/features.tsv.gz ${i}filtered_matrix_emptyDrops/features_backup.tsv.gz &&\
@@ -256,3 +256,8 @@ for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/kallisto/results_filtered_a
 	{ time Rscript --vanilla ${github_path}mapping/filter_raw_emptyDrops.R $i $i "kallisto" "emptyDrops" $threads ; } 2> ${i}runtime_empty_drops.txt
 done 
 
+# Alevin-fry convert count matrix 
+for i in `ls -1d ${main_outpath}MappedReads/pbmc_10x/alevin-fry/results_filtered_anno/sample*/sample*_quant_res/alevin/`; do
+    mkdir ${i}data
+    Rscript --vanilla ${github_path}mapping/post_mapping/load_fry.R $i ${i}data
+done
