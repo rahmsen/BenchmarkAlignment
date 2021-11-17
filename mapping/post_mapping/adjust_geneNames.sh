@@ -13,7 +13,8 @@ function usage() #shows how to use this script
 	echo "  [-d | -sampleDirs Path1,Path2,Path3]    - Paths to samplefolders which contain the Fastq files (comma separated, d)"
 	echo "  [-m | -method ]    - Method used [alevin, alevin-fry or kallisto]"
 	echo "  [-o | -organism ]    - Organism [human or mouse]"
-
+	echo "  [-n | -name_file ]    - path to gene ID to symbol mapping "
+	echo "  [-g | -github_path ]    - path to github repo"
 	exit -1
 }
 
@@ -26,6 +27,7 @@ while test $# -gt 0
 			-m | -method) method=$2;;
 			-o | -organism) organism=$2;;
             -n | -name_file) name_file=$2;;
+            -g | -github_path) github_path=$2;;
 			*) echo "ERROR: unknown argument $1" ; exit -1
 	esac
 	shift 2
@@ -59,7 +61,7 @@ for sampledir in ${SAMPLEDIRS[*]}; do
     #if [[ ${organism} == "human" ]]; then
     #echo "Human"
 
-	Rscript --vanilla ./Adjust_gene_names_both_organism.R ${infile} ${outfile} ${name_file} ${method} ${organism}
+	Rscript --vanilla ${github_path}mapping/post_mapping/Adjust_gene_names_both_organism.R ${infile} ${outfile} ${name_file} ${method} ${organism}
 
 	#if [[ ${method} == "alevin-fry" ]]; then
 	#    gzip $(dirname ${sampledir})*
