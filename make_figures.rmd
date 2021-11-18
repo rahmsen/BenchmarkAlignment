@@ -7,23 +7,28 @@ output: html_document
 
 ```{r setup, echo = T, results='hide'}
 
-library(reshape2)
-library(Seurat)
-library(ggplot2)
-library(ggpubr)
-library(Matrix)
-library(jsonlite)
-library(egg)
-library(ComplexHeatmap)
-library(svglite)
-library(SCINA)
-library(ggalluvial)
-library(dplyr)
+packages <- c("reshape2", "Seurat", "ggplot2", "ggpubr", "Matrix", 
+              "jsonlite", "egg", "svglite", "SCINA", "ggalluvial", "dplyr")
+
+lapply(packages, function(x) {
+  if (!require(x, character.only = T)) install.packages(x)
+    suppressPackageStartupMessages(library(x, character.only = T))
+})
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ComplexHeatmap")
+
+
 
 #### !!! Please define the path to your downloaded Github directory and the output directory 
 github_path="/path/to/main/GithubRepository/BenchmarkAlignment/"
-main_outpath="/path/to/main/output/"
+main_outpath="/path/to/main/output/" #same main_outpath as in shell scripts
 setwd(main_outpath)
+
+dir.create("plots_revision")
+tmp/upset/
 
 #### State which datasets should be used ####
 datasets <- c("pbmc_10x")#"Endothelial", "Cardiac", "HF",
@@ -339,7 +344,8 @@ map_data <- aggregate(mapping_rate ~ Mapper + Dataset, data = all_mapping_rates_
 map_data2 <- aggregate(mapping_rate ~ Mapper + Dataset, data = all_mapping_rates_melt, sem)
 map_data$sem <- map_data2$mapping_rate
 colnames(map_data)[3] <- "mean"
-map_data$Dataset <- factor(map_data$Dataset, levels = datasets_nice)
+map_data$Dataset <- factor(map_data$Dataset)
+levels(map_data$Dataset) = datasets_nice
 map_data$Mapper <- factor(map_data$Mapper, levels = tools)
 levels(map_data$Mapper) <- tools_nice
 
@@ -356,7 +362,6 @@ ggsave(paste0(main_outpath, "plots_revision/Figure_1_hf.svg"), device = "svg", w
 ```
 
 ```{r Suppl Figure 1}
-#library(egg)
 
 plot_data <- lapply(pbmc_cardiac_endo, function(x) {
   list(genes = x$nFeature_RNA,
@@ -387,7 +392,6 @@ ggsave(paste0(main_outpath, "plots_revision/Suppl_Figure_1_hf.svg"), p_density, 
 
 
 ```{r Figure 2 and Suppl figure 2 Upset plot}
-#library(ComplexHeatmap)
 #### Set up Functions ####
 get_counts <- function(dataset){
 lapply(dataset, function(x) {
@@ -431,28 +435,37 @@ counts_pbmc_cardiac_endo <- get_counts(pbmc_cardiac_endo)
 
 
 # make long tables
+
 get_data_upset <- function(data_m, type_m, datasets_nice_m, get_mat){
 d <- list()
+
+if (datasets %in% "pbmc_10x"){
 samples <- c(paste(paste0("sample",seq(4))))
 d[[datasets_nice_m[3]]] <- get_upset(samples, data_m$PBMC, type_m=type_m, 
                                      sorting=T, dataset_name="pbmc", get_only_mat=get_mat)
 names(d[[datasets_nice_m[3]]]) <- samples
+}
 
+if (datasets %in% "Cardiac"){
 samples <- paste0("MF1701",c(0,3:8))
 d[[datasets_nice_m[2]]] <- get_upset(samples, data_m$Cardiac, type_m=type_m, sorting=T, 
                                      dataset_name="cardiac", get_only_mat=get_mat)
 names(d[[datasets_nice_m[2]]]) <- samples
+}
 
+if (datasets %in% "Endothelial"){
 samples <- c("Heart","Kidney","Liver","Brain","Colon","Lung","muscle_EDL","muscle_Soleus","Small_Intestine","Spleen","Testis")
 d[[datasets_nice_m[1]]] <- get_upset(samples, data_m$Endothelial, type_m=type_m, 
                                      sorting=T, dataset_name="endo", get_only_mat=get_mat)
 names(d[[datasets_nice_m[1]]]) <- samples
+}
 
+if (datasets %in% "HF"){
 samples <- paste0("103837-001-00",1:5)
 d[[datasets_nice_m[4]]] <- get_upset(samples, data_m$HF, type_m=type_m, sorting=T, 
                                      dataset_name="hf", get_only_mat=get_mat)
 names(d[[datasets_nice_m[4]]]) <- samples
-
+}
 d
 }
 ##### make data pretty (for ggplot) #####
@@ -577,55 +590,68 @@ suppl_fig_2 <- list()
 comb_sizes_bc <- get_data_upset(bc_pbmc_endo_cardiac, "barcode", 
                                 datasets_nice, get_mat = T)
 
-bc_per_sample <- lapply(comb_sizes_bc$Cardiac, function(x) extract_comb(x, "11101"))
-bc <- unique(unlist(bc_per_sample))
+##bc_per_sample <- lapply(comb_sizes_bc$Cardiac, function(x) extract_comb(x, "11101"))
+#bc <- unique(unlist(bc_per_sample))
+
+if (datasets %in% "Cardiac"){
 ##### Density for 1:Cardiac #####
 bc <- extract_comb(comb_sizes_bc$Cardiac[[1]], "11101")
 mapper <- c("cellranger6","starsolo","alevin-fry", "kallisto")
 mapper_final <- c("Cell Ranger 6", "STARsolo","Alevin-fry", "Kallisto")
 suppl_fig_2[[1]] <- plot_density(plot_data, bc, mapper, mapper_final, "Cardiac","1")
+}
+if (datasets %in% "HF"){
 ##### Density for 1:HF #####
 bc <- extract_comb(comb_sizes_bc$HF[[1]], "11101")
 mapper <- c("cellranger6","starsolo","alevin-fry", "kallisto")
 mapper_final <- c("Cell Ranger 6", "STARsolo","Alevin-fry", "Kallisto")
 suppl_fig_2[[2]] <- plot_density(plot_data, bc, mapper, mapper_final, "HF","1")
-
+}
+if (datasets %in% "HF"){
 ##### Density for 2:HF #####
 bc <- extract_comb(comb_sizes_bc$Cardiac[[1]], "11001")
 mapper <- c("cellranger6","starsolo", "kallisto")
 mapper_final <- c("Cell Ranger 6", "STARsolo", "Kallisto")
 suppl_fig_2[[3]] <- plot_density(plot_data, bc,mapper, mapper_final, "Cardiac","2")
+}
+if (datasets %in% "Cardiac"){
 ##### Density for 2:Cardiac #####
 bc <- extract_comb(comb_sizes_bc$HF[[2]], "11001")
 mapper <- c("cellranger6","starsolo", "kallisto")
 mapper_final <- c("Cell Ranger 6", "STARsolo", "Kallisto")
 suppl_fig_2[[4]] <- plot_density(plot_data, bc,mapper, mapper_final, "HF","2")
-
+}
+if (datasets %in% "HF"){
 ##### Density for 3:HF #####
 bc <- extract_comb(comb_sizes_bc$HF[[1]], "00101")
 mapper <- c("alevin-fry", "kallisto")
 mapper_final <- c("Alevin-fry", "Kallisto")
 suppl_fig_2[[5]] <- plot_density(plot_data, bc,mapper, mapper_final, "HF","3")
-
+}
+if (datasets %in% "Endothelial"){
 ##### Density for 4:Endothelial #####
 bc <- extract_comb(comb_sizes_bc$Endothelial[[1]], "00010")
 mapper <- c("alevin")
 mapper_final <- c("Alevin")
 suppl_fig_2[[6]] <- plot_density(plot_data, bc,mapper, mapper_final, "Endothelial","4")
+}
+if (datasets %in% "PBMC"){
 ##### Density for 4:PBMC #####
 bc <- extract_comb(comb_sizes_bc$PBMC[[1]], "00010")
 mapper <- c("alevin")
 mapper_final <- c("Alevin")
 suppl_fig_2[[7]] <- plot_density(plot_data, bc,mapper, mapper_final, "PBMC","4")
-
+}
+if (datasets %in% "HF"){
 ##### Density for 6:HF #####
 bc <- extract_comb(comb_sizes_bc$HF[[1]], "00001")
 mapper <- c("kallisto")
 mapper_final <- c("Kallisto")
 suppl_fig_2[[8]] <- plot_density(plot_data, bc, mapper, mapper_final, "HF","5")
-
-suppl_fig_2[c(2:4,6:8)] <- lapply(suppl_fig_2[c(2:4,6:8)], function(x) x + theme(axis.title.y = element_blank()))
-suppl_fig_2[1:4] <- lapply(suppl_fig_2[1:4], function(x) x + theme(axis.title.x = element_blank()))
+}
+# remove redundant axis titles
+#suppl_fig_2[c(2:4,6:8)] <- lapply(suppl_fig_2[c(2:4,6:8)], function(x) x + theme(axis.title.y = element_blank()))
+#suppl_fig_2[1:4] <- lapply(suppl_fig_2[1:4], function(x) x + theme(axis.title.x = element_blank()))
 
 p_density_all <- ggpubr::ggarrange(plotlist = suppl_fig_2, nrow = 2, ncol = 4,
                                    align = "h")
@@ -664,6 +690,7 @@ pbmc_biotypes <- lapply(gene_counts[grep("PBMC", names(gene_counts))], function(
   biotype$genetype
 })
 
+if (datasets %in% c("Cardiac","Endothelial")){
 cardiac_endo_biotypes <- lapply(gene_counts[grep("Cardiac|Endothelial", names(gene_counts))], function(x) {
   if (grepl("\\.",names((x))[1]) ){
     biotype <- all_genes_mouse[all_genes_mouse$ID_type %in% names(x),]
@@ -672,7 +699,7 @@ cardiac_endo_biotypes <- lapply(gene_counts[grep("Cardiac|Endothelial", names(ge
   }
   biotype$genetype
 })
-
+}
 biotypes <- c(pbmc_biotypes, cardiac_endo_biotypes)
 
 biotypes_long <- melt(biotypes)
@@ -895,53 +922,44 @@ pbmc_cardiac_endo <- lapply(pbmc_cardiac_endo, function(x) {
 
 
 integrated_data <- list()
+if (datasets %in% "PBMC"){
 integrated_data[["PBMC"]] <- lapply(tools, function(x) {
   integrate_per_mapper(pbmc_cardiac_endo[grep(paste0(x,"__PBMC"), names(pbmc_cardiac_endo))], 
                        paste("PBMC_integration", x, sep = "_"), 20, 0.15)
 })
-
-
+names(integrated_data$PBMC) <- tools_nice
+}
+if (datasets %in% "Cardiac"){
 integrated_data[["Cardiac"]] <- lapply(tools, function(x) {
   integrate_per_mapper(pbmc_cardiac_endo[grep(paste0(x,"__Cardiac"), names(pbmc_cardiac_endo))], 
                        paste("Cardiac_integration", x, sep = "_"), 20, 0.15)
 })
-
-
+names(integrated_data$Cardiac) <- tools_nice
+}
+if (datasets %in% "Endothelial"){
 integrated_data[["Endothelial"]] <- lapply(tools, function(x) {
   integrate_per_mapper(pbmc_cardiac_endo[grep(paste0(x,"__Endothelial"), names(pbmc_cardiac_endo))], 
                        paste("Endothelial_integration", x, sep = "_"), 20, 0.15)
 })
-
+}
+if (datasets %in% "HF"){
 data_name <- "HF"
 integrated_data[[data_name]] <- lapply(tools, function(x) {
   integrate_per_mapper(pbmc_cardiac_endo[grep(paste0(x, "__", data_name), names(pbmc_cardiac_endo))], 
                        paste(data_name, "integration", x, sep = "_"), 20, 0.15)
 })
-
-names(integrated_data$PBMC) <- tools_nice
-names(integrated_data$Cardiac) <- tools_nice
 names(integrated_data$HF) <- tools_nice
+}
+
+
+
+
 integrated_data$PBMC <- lapply(integrated_data$PBMC, function(x) {
   DefaultAssay(x) <- "SCT"
   x
   })
-for (i in integrated_data$HF) DefaultAssay(i) <- "integrated"
-lapply(integrated_data$HF, function(x) {
-  DimPlot(FindClusters(x,resolution = 0.5), label = T)
-})
 
-
-
-DimPlot(integrated_data$PBMC$STARsolo, label = T)
-
-lapply(integrated_data, function(x) {
-  lapply(x, function(p) {
-      DimPlot(p, label = T)
-      ggsave(paste0(main_outpath, "plots_revision/tmp/umap/umap_", Project(p), ".png"))
-  })
-})
-
-
+if (datasets %in% "PBMC"){
 integrated_data$PBMC <- lapply(integrated_data$PBMC, function(x) {
   x <- RunPCA(x, verbose = FALSE)
   x <- RunUMAP(x, dims = 1:20, verbose = FALSE)
@@ -958,53 +976,12 @@ VlnPlot(integrated_data$PBMC$STARsolo, features = c("IL7R", "CCR7", "CD14", "LYZ
 
 
 VlnPlot(integrated_data$PBMC$STARsolo, features = c("CD8A", "GZMK", "CCL5", "CCR7","IL32", "ISG15"),assay = "RNA")
-
+}
 ```
 
-
-```{r}
-f <- read.table("/media/Helios_scStorage/Ralf/triangulate_two_level/harmonizing/PanglaoDB_markers_27_Mar_2020.tsv", header = T, sep = "\t", quote = '')
-
-fheart <- f[grepl("Hs",f$species) & f$organ %in% c("Blood", "Connective tissue", "Epithelium","Immune system","Heart","Smooth muscle", "Vasculature"),]
-
-firstup <- function(x) {
-  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
-  x
-}
-
-cell_types <- unique(fheart$cell.type)
-names(cell_types) <- cell_types
-
-marker_genes <- lapply(cell_types, function(c){
-  unique(toupper(as.character(fheart[fheart$cell.type==c,2])))
-})
-marker_genes <- marker_genes[-c(49)]
-for (m in seq_along(marker_genes)){
-  p_marker<- DotPlot(integrated_data$HF$`Cell Ranger 6`, features = marker_genes[[m]], assay = "RNA") +
-    theme(axis.text.x = element_text(angle = 60,vjust=+1.05 ,hjust = +1.1))
-  ggsave(paste0("plots_revision/tmp/marker_genes/HF/", names(marker_genes)[m] , ".svg"), p_marker, device = "svg")
-}
-DotPlot(seurat_object, features = marker_genes[1:5])
-
-seurat_cluster <- seurat_object$seurat_clusters
-levels(seurat_cluster) <- c("FB","CM","Monocytes", "EC","EC", "Mural cells", "Pericardium-like", "Lymphocytes", "Adipocyte-like", "CM", "EC-like", "ECFB", "CM")
-seurat_object$Celltypes <- seurat_cluster
-```
 
 
 ```{r SCINA cell annotation}
-#library(SCINA)
-
-# Old
-# cell_type_genes_pbmc <- list(
-#   "Endothelial cells"=c("Ly6c1","Egfl7","Gpihbp1","Cdh5","Mgll","Slc9a3r2","Emcn","Kdr","Pecam1","Rgcc","Tie1","Cldn5","Eng"),
-#   Monocytes=c("Dab2","Adgre1","Mrc1","Hpgd","P2ry6","C3ar1","F13a1","Maf","Ms4a7","Cd14","Ptprc","Lyz","Fcgr3a"),
-#   "Dendritic cells"=c("Fcer1a", "Cst3", "Il3ra", "Lilra4", "Dnase1l3", "Rnase6"),
-#   "NK-cells"=c("Gnly","Nkg7","Klrk1","Klre1","Klrd1","Ncr1","Ctsw","Klrb1c","Gzma","Gzmb","Prf1"),
-#   "B-cells"=c("Cd79a","Ly6d","Cd79b","H2-DMb2","Ms4a1","H2-Ob","Fcmr","Ccr7","Bank1","Cd55","Iglc2", "Iglc3","Cd19","Pax5","Iglc1"),
-#   "T-cell CD4+"=c("Cd3g","Lat","Cd3e","Il7r","Cd247","Itk","Icos","Trdc"),
-#   "T-cell CD8+"=c("Cd8a","Cd8b","Gzmk", "Ccl5","cd27","Themis")
-# )
 
 #### Define cell type marker ####
 cell_type_genes_pbmc <- list(
@@ -1016,7 +993,7 @@ cell_type_genes_pbmc <- list(
   "B-cells" = c("Cd79a","Ly6d","Cd79b","Ms4a1","Fcmr","Bank1",
               "Cd55","Iglc2", "Iglc3","Cd19","Pax5","Iglc1"),
   "T-cell CD4+" = c("CD4","Cd3g","Lat","Cd3e","Il7r","Cd247","Itk","Icos","Trdc","Ccr7"),
-  "T-cell CD8+" = c("Cd8a","Cd8b","cd27","Themis")#"Gzmk", "Ccl5",
+  "T-cell CD8+" = c("Cd8a","Cd8b","cd27","Themis")
 )
 cell_type_genes_pbmc <- sapply(cell_type_genes_pbmc,toupper)
 
@@ -1040,21 +1017,6 @@ colnames(gene2celltype_cardiac) <- c("gene","cell_type")
 
 
 
-lapply(integrated_data$PBMC, function(x) {
-      DotPlot(x, features = cell_type_genes_pbmc, assay = "RNA") +
-              theme(axis.text.x = element_text(angle = 60,vjust=+1.05 ,hjust = +1.1))
-      ggsave(paste0("plots_revision/tmp/marker_genes/Marker_genes_", Project(x), "2.png"),
-             height = 6, width = 15)
-})
-
-lapply(integrated_data$Cardiac, function(x) {
-      DotPlot(x, features = cell_type_genes_cardiac, assay = "RNA") +
-              theme(axis.text.x = element_text(angle = 60,vjust=+1.05 ,hjust = +1.1))
-      ggsave(paste0("plots_revision/tmp/marker_genes/Marker_genes_", Project(x), ".png")
-             ,height = 6, width = 15)
-})
-
-
 cell_type_genes_HF <- list(CM=c("TTN","TNNT2","DMD","RYR2","TNNI3","MYH7"),
                    EC=c("CDH5","PECAM1","VWF","ICAM1","CD93","ADGRL4","ENG","EMCN","TIE1"),
                    FB=c("PDGFRA","COL1A1","COL1A2","DCN","DDR2","ADAMTS5","DPT","VCAN","LAMB1","MMP2"),
@@ -1068,18 +1030,11 @@ gene2celltype_HF$value <- as.character(gene2celltype_HF$value)
 colnames(gene2celltype_HF) <- c("gene","cell_type")
 
 
-lapply(integrated_data$HF, function(x) {
-      DotPlot(x, features = cell_type_genes_HF, assay = "RNA") +
-              theme(axis.text.x = element_text(angle = 60,vjust=+1.05 ,hjust = +1.1))
-      ggsave(paste0("plots_revision/tmp/marker_genes/Marker_genes_", Project(x), ".png"),
-             height = 6, width = 15)
-})
-
 ```
 
 
 
-```{r Suppl Figure 6 and 7 Heatmap}
+```{r Scina cell annotation}
 #library(SCINA)
 
 #### Set up functions ####
@@ -1146,12 +1101,6 @@ major_vote <- function(data_m){
 }
 
 
-
-## just checking if alevin unique bc from upset plots are appearing in the majority voting when bc appearing in more than 2. Obviously not.
-#for (i in bc_unique_alevin){
-#  bc_rownames <- matrix(unlist(strsplit(row.names(barcode_confident_cell_type),"_")),ncol = 2,byrow = T)[,2]
-#  print(str(bc_rownames[bc_rownames %in% i]))
-#}
 
 get_scina_bc <- function(cell_type_marker, confident_celltypes){
   barcodes_scina <- lapply(c(names(cell_type_marker), "unknown"),function(x) {
@@ -1237,8 +1186,9 @@ plot_heatmap <- function(data_m, title_name){
 }
 
 #### Create plots ####
-figure6 <- list()
+#figure6 <- list()
 
+if (datasets %in% "PBMC"){
 #### PBMC ####
 scina_pbmc <- scina_classi(integrated_data$PBMC, cell_type_genes_pbmc)
 
@@ -1247,84 +1197,24 @@ confident_cell_type_pbmc_all <- major_vote(barcode_ident)
 confident_cell_type_pbmc <- confident_cell_type_pbmc_all[confident_cell_type_pbmc_all$n_prim_type >= 2,] # For Suppl. Figure 5
 results_pbmc <- get_plot_data(cell_type_genes_pbmc, confident_cell_type_pbmc, 
                               integrated_data$PBMC, metric = "jaccard")
-figure6$pbmc <- plot_heatmap(results_pbmc, "PBMC")
-
+#figure6$pbmc <- plot_heatmap(results_pbmc, "PBMC")
+}
 #### Cardiac ####
-
+if (datasets %in% "Cardiac"){
 scina_cardiac <- scina_classi(integrated_data$Cardiac, cell_type_genes_cardiac)
 barcode_ident <- merge_list(scina_cardiac)
 confident_cell_type_cardiac_all <- major_vote(barcode_ident)
 confident_cell_type_cardiac <- confident_cell_type_cardiac_all[confident_cell_type_cardiac_all$n_prim_type >= 2,] # For Suppl. Figure 5 ,7
 results_cardiac <- get_plot_data(cell_type_genes_cardiac, confident_cell_type_cardiac, 
                                  integrated_data$Cardiac,  metric = "jaccard")
-figure6$cardiac <- plot_heatmap(results_cardiac, "Cardiac")
-figure6$cardiac <- figure6$cardiac + ylab("")
-
-ggpubr::ggarrange(plotlist = figure6, labels = "AUTO", font.label = list(size = 16), 
-                  legend = "right", common.legend = T)
-
-ggsave("plots_revision/Suppl_figure_6_jaccard.svg", device = "svg", height = 14, width = 14)
-
-
-
-#### Suppl. Figure 7 ####
-make_collapsed_heatmap <- function(data_m, title_name, tools_nice_m=tools_nice){
-  heatmap_metric <- data.frame(data_m %>% group_by(Tool))
-  heatmap_metric <- heatmap_metric[heatmap_metric$Barcode_overlap > 0,]
-  colapsed_cluster_values <- aggregate(Barcode_overlap ~ SCINA_cell_types + Tool, heatmap_metric, mean)
-  colapsed_cluster_values <- colapsed_cluster_values[colapsed_cluster_values$SCINA_cell_types!="unknown",]
-
-  p <- ggplot(colapsed_cluster_values, aes(x = SCINA_cell_types, y = factor(Tool,levels = rev(tools_nice_m)))) +
-    geom_tile(aes(fill = signif(Barcode_overlap, 3)*100)) +
-    geom_text(aes(label = signif(Barcode_overlap, 3)*100), color = "grey95") + ylab("Tools") +
-    scale_y_discrete(expand = c(0, 0)) +
-    scale_x_discrete(expand = c(0, 0)) +
-    theme_classic() +
-    ggtitle(title_name) +
-    xlab("SCINA cell types") +
-    theme(text = element_text(size = 14), 
-          axis.text.x = element_text(angle = 60, vjust = +1.05 , hjust = +1.1),
-          axis.line = element_blank(),
-          plot.title = element_text(hjust = .5))
-  p$labels$fill <- "Barcode\noverlap"
-  return(p)
+#figure6$cardiac <- plot_heatmap(results_cardiac, "Cardiac")
+#figure6$cardiac <- figure6$cardiac + ylab("")
 }
+#ggpubr::ggarrange(plotlist = figure6, labels = "AUTO", font.label = list(size = 16), 
+#                  legend = "right", common.legend = T)
 
-figure7 <- list()
-figure7$pbmc <- make_collapsed_heatmap(results_pbmc, "PBMC")
-figure7$pbmc <- figure7$pbmc + xlab("")
-figure7$cardiac <- make_collapsed_heatmap(results_cardiac, "Cardiac")
+#ggsave("plots_revision/Suppl_figure_6_jaccard.svg", device = "svg", height = 14, width = 14)
 
-ggpubr::ggarrange(plotlist = figure7, labels = "AUTO", nrow = 2, ncol = 1)
-ggsave("plots_revision/Suppl_figure_7_precision_0.svg", device = "svg", height = 10, width = 8)
-
-
-
-
-
-# get mean overlap per tool
-#results$tools <- matrix(unlist(strsplit(as.character(results$Seurat_clusters),"[.]"),recursive = F),ncol = 2,byrow = T)[,1]
-
-#heatmap_metric <- results %>% group_by(Tool) %>% filter(Barcode_overlap>0.05) %>% summarise(mean = mean(Barcode_overlap))
-overlap_per_tool_cell_type <- data.frame(results %>% group_by(Tool,SCINA_cell_types) %>% summarise(sum = sum(Barcode_overlap))) #When looking for the entire overlap per tool
-#heatmap_metric <- data.frame(results %>% group_by(Tool) %>% filter(Barcode_overlap>0.05))
-#heatmap_metric <- data.frame(heatmap_metric)[c(4:7,9:10),]
-heatmap_metric <- data.frame(results %>% group_by(Tool))
-heatmap_metric <- heatmap_metric[heatmap_metric$Barcode_overlap>0,]
-colapsed_cluster_values <- aggregate(Barcode_overlap ~ SCINA_cell_types + Tool,heatmap_metric,sum)
-colapsed_cluster_values <- colapsed_cluster_values[colapsed_cluster_values$SCINA_cell_types!="unknown",]
-
-ggplot(colapsed_cluster_values, aes(x=SCINA_cell_types,y=factor(Tool,levels = c("Kallisto","Alevin","STARsolo","Cell Ranger 5","Cell Ranger")))) +
-  geom_tile(aes(fill = Barcode_overlap)) + 
-  geom_text(aes(label = round(Barcode_overlap, 3)*100)) + ylab("Tools") + 
-  theme(axis.text.x = element_text(angle = 60, vjust=+1.05 , hjust = +1.1))
-
-aggregate(Barcode_overlap ~ Tool,colapsed_cluster_values,mean)
-#         Tool Barcode_overlap
-#1 Cell Ranger       0.7464897
-#2    STARsolo       0.7321907
-#3      Alevin       0.6990806
-#4    Kallisto       0.6673051
 
 
 
@@ -1364,7 +1254,7 @@ ggplot(global_overlap_melt, aes(x = celltypes, y = factor(Tools,levels = rev(too
 
 
 
-```{r Precision and Recall}
+```{r Precision and Recall Main Fig 4 Suppl Fig 6}
 
 #### Set up functions ####
 cluster2celltype <- function(data_m, tool_name){
@@ -1379,18 +1269,6 @@ cluster2celltype <- function(data_m, tool_name){
   names(new_vec) <- max_overlap$Cluster
   new_vec
 }
-# new_clus_id<- list(cellranger6_celltypes = cluster2celltype(results_pbmc, "Cell Ranger 6"),
-#                    starsolo_celltypes = cluster2celltype(results_pbmc, "STARsolo"),
-#                    alevin_celltypes = cluster2celltype(results_pbmc, "Alevin"),
-#                    alevin_fry_celltypes = cluster2celltype(results_pbmc, "Alevin-fry"),
-#                    kallisto_celltypes = cluster2celltype(results_pbmc, "Kallisto"))
-# 
-# 
-# 
-# for (i in seq(integrated_data$PBMC)){
-#   integrated_data$PBMC[[i]]$celltypes <- integrated_data$PBMC[[i]]$seurat_clusters
-#   levels(integrated_data$PBMC[[i]]$celltypes) <- new_clus_id[[i]]
-# }
 
 
 get_category <- function(data_m, confident_celltypes) {
@@ -1426,25 +1304,15 @@ get_metrics <- function(data_m){
   recall <- list()
   F1 <- list()
   for (i in levels(droplevels(x$celltypes))){#
-    #print(levels(droplevels(x$celltypes)))
-    #print(unique(x$celltypes))
 
     d_tmp <- x %>% filter(celltypes==i)
     #print(d_tmp)
     TP <- d_tmp %>% filter(type =="TP") %>% pull(n) %>% sum()
-    #cat("TP: ")
-    #print(d_tmp %>% filter(type =="TP"))
-    #print(TP)
-    #sum(d_tmp[d_tmp$type=="TP","n"])
+
     FP <- d_tmp %>% filter(type =="FP") %>% pull(n) %>% sum()
-    # cat("FP: ")
-    # print(d_tmp %>% filter(type =="FP"))
-    # print(FP)
-    #FP <- sum(d_tmp[d_tmp$type=="FP","n"])
+
     FN <- x %>% filter(is.na(celltypes), primtype == i) %>% pull(n) %>% sum()
-    # cat("FN: ")
-    # print(x %>% filter(is.na(celltypes), primtype == i))
-    # print(FN)
+
     precision[[i]] <- TP / (TP + FP)
     recall[[i]] <- TP / (TP + FN)
     F1[[i]] <- 2 * (precision[[i]] * recall[[i]]) / (precision[[i]] + recall[[i]])
@@ -1530,7 +1398,7 @@ p_bc_recall_prec_f1[["pbmc_recall"]] <- get_plot(plot_data) +
 #        device = "svg", height = 8, width = 10)
 
 
-
+if (datasets %in% "Cardiac"){
 #### Cardiac ####
 new_clus_id <- list(cellranger6_celltypes = cluster2celltype(results_cardiac, "Cell Ranger 6"),
                    starsolo_celltypes = cluster2celltype(results_cardiac, "STARsolo"),
@@ -1576,22 +1444,23 @@ ggpubr::ggarrange(plotlist = p_bc_recall_prec_f1[-c(4)],
                                                  ncol = 2, nrow = 3,
                   labels = "AUTO", common.legend = T, legend = "right")
 
-ggsave("plots_revision/Suppl_figure_f1_recall_prec.svg", height = 14, width = 12)
+ggsave("plots_revision/Suppl_Figure_f6_recall_prec.svg", height = 14, width = 12)
 
 
 
-
-p_pbmc_prec <- p_pbmc_prec + theme(axis.text.x = element_blank()) + ylab("Precision") + ggtitle("PBMC")
-p_cardiac_prec <- p_cardiac_prec + ggtitle("Cardiac") + theme(axis.text.y = element_blank(),
+suppl_figure_6_prec_recall <- list()
+if (datasets %in% "Cardiac"){
+suppl_figure_6_prec_recall[["p_cardiac_prec"]] <- p_cardiac_prec + ggtitle("Cardiac") + theme(axis.text.y = element_blank(),
                                          axis.text.x = element_blank())
-p_pbmc_recall <- p_pbmc_recall + ylab("Recall")
-p_cardiac_recall <- p_cardiac_recall + theme(axis.text.y = element_blank())
-
-p_prec_recall <- ggpubr::ggarrange(p_pbmc_prec, p_cardiac_prec, p_pbmc_recall, p_cardiac_recall,
+suppl_figure_6_prec_recall[["p_cardiac_recall"]] <- p_cardiac_recall + theme(axis.text.y = element_blank())
+}
+if (datasets %in% "PBMC"){
+suppl_figure_6_prec_recall[["p_pbmc_prec"]] <- p_pbmc_prec + theme(axis.text.x = element_blank()) + ylab("Precision") + ggtitle("PBMC")
+suppl_figure_6_prec_recall[["p_pbmc_recall"]] <- p_pbmc_recall + ylab("Recall")
+}
+p_prec_recall <- ggpubr::ggarrange(plotlist = suppl_figure_6_prec_recall,
                   labels = "AUTO", common.legend = T, legend = "right", align = "hv")
 ggsave("plots_revision/precision_recall.svg", p_prec_recall, height = 9.5, width = 15)
-
-
 
 
 
@@ -1622,175 +1491,8 @@ p_f1 <- ggplot(plot_data, aes(x = celltype, y = tool, fill = value)) +
   p_f1$labels$fill <- "F1-score"
 p_f1
 
-ggsave("plots_revision/tmp/F1_score_Cardiac.svg", p_f1, device = "svg", height = 8, width = 10)
+ggsave("plots_revision/tmp/Figure_4_A.svg", p_f1, device = "svg", height = 8, width = 10)
 
-
-```
-
-
-```{r sankey and barplot for reviewer comment}
-#### PBMC ####
-# scina_pbmc <- scina_classi(integrated_data$PBMC, cell_type_genes_pbmc)
-# 
-# barcode_ident <- merge_list(scina_pbmc)
-# confident_cell_type_pbmc_alluv <- major_vote(barcode_ident)
-# 
-# freq_bc_tool <- list()
-# for (i in seq(ncol(barcode_ident)-1)){
-#   name_tmp <- names(barcode_ident)[i+1]
-#   bc_per_tool <- barcode_ident[(!is.na(barcode_ident[[name_tmp]])),"Row.names"]
-#   freq_bc_tool[[name_tmp]] <- table(confident_cell_type_pbmc_alluv[row.names(confident_cell_type_pbmc_alluv) %in% bc_per_tool,"n_prim_type"])
-# }
-# plot_data <- melt(freq_bc_tool)
-# plot_data$Var1 <- factor(plot_data$Var1, levels = c("5", "4","3", "2", "1"))
-# plot_data$L1 <- factor(plot_data$L1, levels = c("Cellranger_cluster", "STARsolo_cluster", "Alevin_cluster", "Alevin-fry_cluster", "Kallisto_cluster"))
-# levels(plot_data$L1) <- do.call(rbind, strsplit(levels(plot_data$L1), "_"))[,1]
-# plot_data <- cbind(factor("all_barcodes"), plot_data)
-# colnames(plot_data) <- c("all_barcodes", "n_bc", "n", "Tool")
-# 
-# 
-# ggplot(plot_data, aes(axis1= all_barcodes, axis2 = n_bc, axis3 = Tool, y = n)) +
-#   geom_alluvium(aes(fill = n_bc), show.legend = F) +
-#   scale_fill_manual(values = c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00")) +
-#   geom_stratum() +
-#   geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
-#   theme_minimal() + 
-#   ylab("Barcodes frequency") +
-#   scale_x_discrete(limits = c("All barcodes", "Barcode occurance", "Tools")) +
-#   theme(text = element_text(size = 14),
-#         panel.grid.major.x = element_blank())
-# 
-# 
-# ggsave("plots_revision/tmp/barcodes_per_tool_pbmc.svg")
-# #### Cardiac ####
-# 
-# scina_cardiac <- scina_classi(integrated_data$Cardiac, cell_type_genes_cardiac)
-# barcode_ident <- merge_list(scina_cardiac)
-# confident_cell_type_cardiac_alluv <- major_vote(barcode_ident)
-# 
-# freq_bc_tool <- list()
-# for (i in seq(ncol(barcode_ident)-1)){
-#   name_tmp <- names(barcode_ident)[i+1]
-#   bc_per_tool <- barcode_ident[(!is.na(barcode_ident[[name_tmp]])),"Row.names"]
-#   freq_bc_tool[[name_tmp]] <- table(confident_cell_type_cardiac_alluv[row.names(confident_cell_type_cardiac_alluv) %in% bc_per_tool,"n_prim_type"])
-# }
-# plot_data <- melt(freq_bc_tool)
-# plot_data$Var1 <- factor(plot_data$Var1, levels = c("5", "4","3", "2", "1"))
-# plot_data$L1 <- factor(plot_data$L1, levels = c("Cellranger_cluster", "STARsolo_cluster", "Alevin_cluster", "Alevin-fry_cluster", "Kallisto_cluster"))
-# levels(plot_data$L1) <- do.call(rbind, strsplit(levels(plot_data$L1), "_"))[,1]
-# plot_data <- cbind(factor("all_barcodes"), plot_data)
-# colnames(plot_data) <- c("all_barcodes", "n_bc", "n", "Tool")
-# 
-# ggplot(plot_data, aes(axis1= all_barcodes, axis2 = n_bc, axis3 = Tool, y = n)) +
-#   geom_alluvium(aes(fill = n_bc), show.legend = F) +
-#   scale_fill_manual(values = c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00")) +
-#   geom_stratum() +
-#   geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
-#   theme_minimal() + 
-#   ylab("Barcodes frequency") +
-#   scale_x_discrete(limits = c("All barcodes", "Barcode occurance", "Tools")) +
-#   theme(text = element_text(size = 14),
-#         panel.grid.major.x = element_blank())
-# 
-# ggsave("plots_revision/tmp/barcodes_per_tool_cardiac.svg")
-
-
-
-#### Barplot####
-# densed_bc <- lapply(bc_venn, function(x) {
-#   bc_tmp <- confident_cell_type_cardiac_alluv[row.names(confident_cell_type_cardiac_alluv) %in% x,2]
-#   table(bc_tmp)
-# })
-
-bc_venn <- lapply(integrated_data$PBMC, function(x) colnames(x))
-bc_venn <- lapply(integrated_data$Cardiac, function(x) colnames(x))
-
-bc_venn_melt <- melt(bc_venn)
-bc_count <- table(bc_venn_melt$value)
-bc_count <- melt(bc_count)
-
-densed_bc2 <- lapply(bc_venn, function(x) {
-  bc_tmp <- bc_count[bc_count$Var1 %in% x,2]
-  table(bc_tmp)
-})
-
-plot_data <- melt(densed_bc2)
-colnames(plot_data) <- c("n_tools", "value", "Tool")
-plot_data$Tool <- factor(plot_data$Tool, levels = tools_nice)
-plot_data$n_tools <- factor(plot_data$n_tools)
-
-#alluvial_ts(plot_data[c(3,1,2)])
-
-# ggplot(plot_data, aes(x = n_tools, y = value, fill = Tool)) + 
-#   geom_area() +
-#   scale_fill_brewer(palette = "Set2") +
-#   theme_classic() +
-#   theme(text = element_text(size = 14))
-
-ggplot(plot_data, aes(x = Tool, y = value, fill = n_tools)) +
-  geom_col() +
-  scale_fill_brewer(palette = "Set2", direction = -1) +
-  guides(fill = guide_legend(title = "Barcodes found\nby n tools")) +
-  #scale_y_log10() +
-  ylab("Frequency") +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme_classic() +
-  theme(text = element_text(size = 14),
-        axis.title.x = element_blank())
-  
-  ggsave("plots_revision/tmp/revision_bc_per_tool_pbmc.svg")
-
-
-# n_tmp <- plot_data[plot_data$bc_tmp==1,c(2,3)]
-# colnames(n_tmp)[1] <- 1
-# for (x in unique(plot_data$bc_tmp)[-c(1)]) {
-#   n_tmp <- merge(n_tmp, plot_data[plot_data$bc_tmp==x,c(2,3),],by = "L1")
-#   colnames(n_tmp)[x+1] <- x
-# }
-
-
-# ggplot(n_tmp, aes(axis1= 1, axis2 = 2, axis3 = 3, axis4 = 4, axis5 = 5, y = L1)) +
-#   geom_alluvium() +
-#   #scale_fill_manual(values = c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00")) +
-#   geom_stratum() +
-#   geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
-#   theme_minimal() + 
-#   ylab("Barcodes frequency") +
-#   scale_x_discrete(limits = c("All barcodes", "Barcode occurance", "Tools")) +
-#   theme(text = element_text(size = 14),
-#         panel.grid.major.x = element_blank())
-
-
-####5er venn diagram ####
-
-bc_venn <- lapply(integrated_data$PBMC, function(x) colnames(x))
-p_venn5 <- ggVennDiagram(bc_venn)
-ggsave("plots_revision/tmp/venn_5_pbmc.svg", p_venn5)
-# upset
-mat_upset <- make_comb_mat(bc_venn)
-attr(mat_upset, "comb_size") <- log10(attr(mat_upset, "comb_size"))
-upset_bc_revision <- UpSet(mat_upset, set_order = tools_nice,
-      comb_col = c("#e41a1c",'#377eb8','#4daf4a','#984ea3','#ff7f00')[comb_degree(mat_upset)],
-      comb_order = rev(order(comb_size(mat_upset))))
-
-svg("plots_revision/tmp/upset_5_pbmc.svg", width = 6, height = 3)
-  upset_bc_revision
-dev.off()
-
-
-bc_venn <- lapply(integrated_data$Cardiac, function(x) colnames(x))
-p_venn5 <- ggVennDiagram(bc_venn) +
-ggsave("plots_revision/tmp/venn_5_cardiac.svg", p_venn5)
-# upset
-mat_upset <- make_comb_mat(bc_venn)
-attr(mat_upset, "comb_size") <- log10(attr(mat_upset, "comb_size"))
-upset_bc_revision <- UpSet(mat_upset, set_order = tools_nice,
-      comb_col = c("#e41a1c",'#377eb8','#4daf4a','#984ea3','#ff7f00')[comb_degree(mat_upset)])#,
-      #comb_order = rev(order(comb_size(mat_upset))))
-
-svg("plots_revision/tmp/upset_5_cardiac.svg", width = 6, height = 3)
-  upset_bc_revision
-dev.off()
 
 ```
 
@@ -1837,26 +1539,27 @@ ggpubr::ggarrange(plotlist = p_tmp, ncol = 3, nrow = 2)
 }
 
 #### Make plot for pbmc ####
+if (datasets %in% "PBMC"){
 suppl_figure5$pbmc <- get_sankey_plot(cell_type_genes_pbmc, 
                                       confident_cell_type_pbmc, 
                                       integrated_data$PBMC,
                                       results_pbmc)
-
+}
 #### Make plot for cardiac ####
+if (datasets %in% "Cardiac"){
 suppl_figure5$Cardiac <- get_sankey_plot(cell_type_genes_cardiac, 
                                          confident_cell_type_cardiac, 
                                          integrated_data$Cardiac,
                                          results_cardiac)
-
+}
 
 #### Merge plots ####
 ggpubr::ggarrange(plotlist = suppl_figure5, labels = "AUTO")
-ggsave("plots_revision/Suppl_Figures/Suppl_figure_5_hf.svg", device = "svg", width = 18, height = 12)
+ggsave("plots_revision/Suppl_Figures/Suppl_Figure_5.svg", device = "svg", width = 18, height = 12)
 
 ```
 
-```{r create DEGs}
-
+```{r Figure 4 C B}
 
 figure4_plotlist <- list()
 #### PBMC ####
@@ -1950,7 +1653,7 @@ figure4_plotlist[["deg_jac"]] <- ggplot(overlap_degs_melt, aes(x = celltype, y =
 
 figure4_plotlist[["deg_jac"]]$labels$fill <- "Overlap"
 #p_deg_overlap
-#ggsave("plots_revision/Figure_4_heatmap_jac.svg", p_deg_overlap, height = 6, width = 8)
+ggsave("plots_revision/Figure_4.svg", p_deg_overlap, height = 6, width = 8)
   
   
 ##### Heatmap of pearson correlation #####
@@ -2008,7 +1711,7 @@ figure4_plotlist[["deg_cor"]] <- ggplot(cor_fc_melt, aes(x = celltype, y = tool)
 
 figure4_plotlist[["deg_cor"]]$labels$fill <- "Correlation (r)"
 #p_deg_cor
-#ggsave("plots_revision/Figure_4_heatmap_cor.svg", p_deg_cor, height = 6, width = 8)
+ggsave("plots_revision/Figure_4_heatmap_cor.svg", p_deg_cor, height = 6, width = 8)
 
 
 
@@ -2029,10 +1732,10 @@ attr(comb_mat, "comb_size") <- log10(attr(comb_mat, "comb_size")) # get a log10 
 figure4_plotlist[["upset"]] <- UpSet(comb_mat, set_order = tools_nice,
       comb_col = c("#e41a1c",'#377eb8','#4daf4a','#984ea3','#ff7f00')[comb_degree(comb_mat)])
 
-# svg("plots_revision/Figure_4_log10.svg", width = 6, height = 3)
-#   UpSet(comb_mat,set_order = tools_nice,
-#         comb_col = c("#e41a1c",'#377eb8','#4daf4a','#984ea3','#ff7f00')[comb_degree(comb_mat)])
-# dev.off()
+svg("plots_revision/Figure_4_log10.svg", width = 6, height = 3)
+  UpSet(comb_mat,set_order = tools_nice,
+        comb_col = c("#e41a1c",'#377eb8','#4daf4a','#984ea3','#ff7f00')[comb_degree(comb_mat)])
+dev.off()
 
 
 
@@ -2106,7 +1809,8 @@ ggsave("plots_revision/tmp/log2FC_cellranger_vs_other_scatter.svg",
 ```
 
 
-```{r Figure 4 DEG}
+```{r Figure 4 E-H}
+integrated_data <- readRDS("/media/Storage/Benchmark/integrated_data_pbmc_cardiac_new.rds")
 
 new_clus_id<- list(
   cellranger6_celltypes=c("0"="T-cells CD4+","1"="T-cells CD4+","2"="Monocytes","3"="NK-cells","4"="NKT-cells",
@@ -2274,38 +1978,37 @@ ggsave("plots_revision/Figure_4_heatmap_cor_overlap.svg",p_deg_cor_overlap, heig
 
 
 
-```{r Suppl. Figure 8}
-library(fishpond)
-
-
-datasets <- c("pbmc_10x", "Endothelial", "Cardiac")
-tools <- c("cellranger", "cellranger5", "starsolo", "alevin", "kallisto")
-filtered <- c("results_filtered_anno", "results_unfiltered_anno")
-
-filtered_data <- list()
-filtered_data_seurat_obj <- list()
-for (i in datasets){
-  if (i == "Cardiac"){
-    print(i)
-    sample_names <- paste0(c("MF1701"), c(0,3:8))
-  } else if(i == "Endothelial"){
-    sample_names <- c("Brain", "Colon", "Heart", "Kidney", "Liver", "Lung", "muscle_EDL", "muscle_Soleus", "Small_Intestine", "Spleen", "Testis")
-  } else if(i == "pbmc_10x"){
-    sample_names <- paste0(c("sample"), c(1:4))
-  }
-  for (j in tools){
-    print(j)
-    if(j == "cellranger5" && i == "Endothelial") next
-    for (k in filtered){
-      #if (j =="cellranger5") k <- NULL
-      for (l in sample_names){
-        filtered_data[[paste(i,j,k,l,sep="__")]] <- read_data(i,j,k,l)
-        filtered_data_seurat_obj[[paste(i,j,k,l,sep="__")]] <- CreateSeuratObject(filtered_data[[paste(i,j,k,l,sep="__")]],project = paste(i,j,k,l,sep="__"))
-      }
-    }
-  }
-}
-
+```{r Suppl. Figure 7}
+# library(fishpond)
+# 
+# 
+# datasets <- c("pbmc_10x", "Endothelial", "Cardiac")
+# tools <- c("cellranger", "cellranger5", "starsolo", "alevin", "kallisto")
+# filtered <- c("results_filtered_anno", "results_unfiltered_anno")
+# 
+# filtered_data <- list()
+# filtered_data_seurat_obj <- list()
+# for (i in datasets){
+#   if (i == "Cardiac"){
+#     print(i)
+#     sample_names <- paste0(c("MF1701"), c(0,3:8))
+#   } else if(i == "Endothelial"){
+#     sample_names <- c("Brain", "Colon", "Heart", "Kidney", "Liver", "Lung", "muscle_EDL", "muscle_Soleus", "Small_Intestine", "Spleen", "Testis")
+#   } else if(i == "pbmc_10x"){
+#     sample_names <- paste0(c("sample"), c(1:4))
+#   }
+#   for (j in tools){
+#     print(j)
+#     if(j == "cellranger5" && i == "Endothelial") next
+#     for (k in filtered){
+#       #if (j =="cellranger5") k <- NULL
+#       for (l in sample_names){
+#         filtered_data[[paste(i,j,k,l,sep="__")]] <- read_data(i,j,k,l)
+#         filtered_data_seurat_obj[[paste(i,j,k,l,sep="__")]] <- CreateSeuratObject(filtered_data[[paste(i,j,k,l,sep="__")]],project = paste(i,j,k,l,sep="__"))
+#       }
+#     }
+#   }
+# }
 filtered <- c("results_filtered_anno")
 pbmc_cardiac_endo <- save_seurat_objects(datasets, tools, filtered)
 names(pbmc_cardiac_endo) <- paste0(names(pbmc_cardiac_endo), "__filtered")
@@ -2353,12 +2056,12 @@ ggsave("plots_revision/tmp/suppl_figure_8a_boxplot.svg", device = "svg", height 
 
 
 #### barplot (B) for figure 8 #####
-mt_content <- read.table("/media/Storage/additional_datasets/mt_content_read_counts.tsv")
+#mt_content <- read.table("additional_datasets/mt_content_read_counts.tsv")
 colnames(mt_content) <- c("genes", "read_count", "Dataset", "read_fate")
 mt_content$read_fate <- factor(mt_content$read_fate,levels = c("removed","kept"))
 levels(mt_content$read_fate) <- c("yes", "no")
-mt_content$Dataset <- factor(mt_content$Dataset, levels = c("pbmc","rosenthal"))
-levels(mt_content$Dataset) <- c("PBMC", "Cardiac")
+#mt_content$Dataset <- factor(mt_content$Dataset, levels = c("pbmc","rosenthal"))
+#levels(mt_content$Dataset) <- c("PBMC", "Cardiac")
 
 p_mt_change <- ggplot(mt_content,aes(x = genes, y = read_count, fill = read_fate)) +
   geom_col() +
@@ -2372,15 +2075,16 @@ p_mt_change <- ggplot(mt_content,aes(x = genes, y = read_count, fill = read_fate
   xlab("Mitochondrial genes") +
   ylab("Read count")
 
-ggsave("plots_revision/tmp/figure8b_barplot_reads.svg", p_mt_change, device = "svg", height = 5,width = 10)
+ggsave("/media/Helios_scStorage/Ralf/Benchmark/plots/tmp/figure8b_barplot_reads.svg", p_mt_change, device = "svg", height = 5,width = 10)
 
 ```
 
 
-Cluster the cells to see if the cells from the mapping with the unfiltered 
-annotation lie within the other clusters or form a specific new cluster 
-indicating non valid cells.
+
 ```{r Suppl Figure 8c New barcodes}
+# Cluster the cells to see if the cells from the mapping with the unfiltered 
+# annotation lie within the other clusters or form a specific new cluster 
+# indicating non valid cells.
 
 # get new barcodes
 get_mt_gene_count <- function(m_filtered_data){
@@ -2474,155 +2178,15 @@ png("plots_revision/tmp/suppl_figure8_umap_new_cells.png",width = 1300, height =
 cluster_plot
 dev.off()
 
-ggsave("plots_revsion/tmp/suppl_figure8_umap_new_cells.png", cluster_plot2[[1]], device="png", width = 8, height = 5)
+ggsave("plots_revision/tmp/suppl_figure8_umap_new_cells.png", cluster_plot2[[1]], device="png", width = 8, height = 5)
 
 ```
 
-
-```{r Suppl Figure 2}
-datasets <- c("pbmc_10x", "Endothelial", "Cardiac")
-tools <- c("cellranger", "cellranger5", "starsolo", "alevin", "kallisto")
-filtered <- c("results_filtered_anno", "results_unfiltered_anno")
-
-filtered_data <- list()
-filtered_data_seurat_obj <- list()
-for (i in datasets){
-  if (i == "Cardiac"){
-    print(i)
-    sample_names <- paste0(c("MF1701"), c(0,3:8))
-  } else if(i == "Endothelial"){
-    sample_names <- c("Brain", "Colon", "Heart", "Kidney", "Liver", "Lung", "muscle_EDL", "muscle_Soleus", "Small_Intestine", "Spleen", "Testis")
-  } else if(i == "pbmc_10x"){
-    sample_names <- paste0(c("sample"), c(1:4))
-  }
-  for (j in tools){
-    print(j)
-    if(j == "cellranger5" && i == "Endothelial") next
-    for (k in filtered){
-      #if (j =="cellranger5") k <- NULL
-      for (l in sample_names){
-        filtered_data[[paste(i,j,k,l,sep="__")]] <- read_data(i,j,k,l,1)
-        filtered_data_seurat_obj[[paste(i,j,k,l,sep="__")]] <- CreateSeuratObject(filtered_data[[paste(i,j,k,l,sep="__")]],project = paste(i,j,k,l,sep="__"))
-        #filtered_data_seurat_obj[[paste(i,j,k,l,sep="__")]][["percent.mt"]] <- PercentageFeatureSet(filtered_data_seurat_obj[[paste(i,j,k,l,sep="__")]], pattern = "^MT-|^mt-")
-      }
-    }
-  }
-}
-
-filtered <- c("results_filtered_anno", "results_unfiltered_anno")
-pbmc_cardiac_endo <- save_seurat_objects(datasets, tools, filtered, 1)
-names(pbmc_cardiac_endo) <- gsub("pbmc_10x","PBMC", names(pbmc_cardiac_endo))
-
-all_genes_mouse <- read.table(paste0(github_path, "mapping/post_mapping/all_genes_mouse.tsv"), 
-                              sep = "\t",colClasses = c(rep("character",4)))
-
-all_genes_human <- read.delim(paste0(github_path, "mapping/post_mapping/all_genes_human.tsv"),
-                              header = F,colClasses = c(rep("character",4)))
-
-gene_counts <- lapply(filtered_data_seurat_obj, function(x) {
-  gene_count <- rowSums(x)
-  gene_count <- gene_count[gene_count > 0]
-  gene_count
-})
-
-pbmc_biotypes <- lapply(gene_counts[grep("pbmc", names(gene_counts))], function(x) {
-  if (grepl("\\.",names((x))[1]) ){
-    biotype <- all_genes_human[all_genes_human$V1 %in% names(x),]
-  }else {
-    biotype <- all_genes_human[all_genes_human$V2 %in% names(x),]
-  }
-  biotype$V4
-})
-
-cardiac_endo_biotypes <- lapply(gene_counts[grep("Cardiac|Endothelial", names(gene_counts))], function(x) {
-  if (grepl("\\.",names((x))[1]) ){
-    biotype <- all_genes_mouse[all_genes_mouse$V1 %in% names(x),]
-  }else {
-    biotype <- all_genes_mouse[all_genes_mouse$V2 %in% names(x),]
-  }
-  biotype$V4
-})
-
-biotypes <- c(pbmc_biotypes, cardiac_endo_biotypes)
-
-biotypes_long <- melt(biotypes)
-
-biotypes_long <- cbind(biotypes_long, do.call(rbind, strsplit(biotypes_long$L1,"__")))
-colnames(biotypes_long) <- c("value", "L1", "Dataset", "Mapper", "Filtering", "Sample")
-biotypes_long$Dataset <- factor(biotypes_long$Dataset, levels = datasets)
-levels(biotypes_long$Dataset) <- c("PBMC", "Endothelial", "Cardiac")
-biotypes_long$Mapper <- factor(biotypes_long$Mapper, levels = tools)
-levels(biotypes_long$Mapper) <- c("Cell Ranger", "Cell Ranger 5", "STARsolo", "Alevin", "Kallisto")
-biotypes_long$Filtering <- factor(biotypes_long$Filtering)
-levels(biotypes_long$Filtering) <- c("Filtered", "Unfiltered")
-biotypes_long$value <- factor(biotypes_long$value)
-
-# condense biotypes
-levels(biotypes_long$value)[grep("TR_", levels(biotypes_long$value))] <- "TR-genes"
-levels(biotypes_long$value)[grep("IG_", levels(biotypes_long$value))] <- "IG-genes"
-levels(biotypes_long$value)[levels(biotypes_long$value) %in% c("polymorphic_pseudogene",
-                                        "pseudogene",
-                                        "unitary_pseudogene",
-                                        "rRNA_pseudogene"
-                                        )] <- "other_pseudogenes"
-levels(biotypes_long$value)[levels(biotypes_long$value) %in% c("transcribed_unprocessed_pseudogene",
-                                        "transcribed_processed_pseudogene",
-                                        "transcribed_unitary_pseudogene")] <- "transcribed_pseudogenes"
-levels(biotypes_long$value)[levels(biotypes_long$value) %in% c("translated_unprocessed_pseudogene",
-                                        "translated_processed_pseudogene")] <- "translated_pseudogenes"
-biotypes_long <- biotypes_long[!biotypes_long$value %in% c("Mt_tRNA","Mt_rRNA","scRNA","sRNA","ribozyme","scaRNA","vaultRNA","snoRNA","snRNA","rRNA"),] # remove unnecessary biotypes
-
-biotypes_long$value <- droplevels(biotypes_long$value)
-levels(biotypes_long$value) <- sub("_pseudogene|_pseudogenes", "\npseudogenes", levels(biotypes_long$value))
-# change biotypes order
-biotypes_long$value <- factor(biotypes_long$value, levels = c("protein_coding",
-                                                                   "lncRNA",
-                                                                   "IG_genes",
-                                                                   "TR_genes",
-                                                                   "TEC",
-                                                                   "miRNA",
-                                                                   "misc_RNA",
-                                                                   "processed\npseudogenes",
-                                                                   "unprocessed\npseudogenes",
-                                                                   "transcribed\npseudogenes",
-                                                                   "translated\npseudogenes",
-                                                                   "other\npseudogenes"))
-levels(biotypes_long$value)[c(1,3,4,7)] <- c("Protein coding", "IG genes", "TR genes", "misc RNA") 
-biotypes_long_long <- melt(table(biotypes_long$value, biotypes_long$Mapper, biotypes_long$Dataset, biotypes_long$Filtering, biotypes_long$Sample))
-colnames(biotypes_long_long) <- c("Biotype","Mapper", "Dataset",  "Filtering", "Sample","value")
-
-biotypes_long_long_pbmc <- biotypes_long_long[biotypes_long_long$Dataset=="PBMC" & biotypes_long_long$Sample %in% paste0(c("sample"), c(1:4)),]
-biotypes_long_long_cardiac <- biotypes_long_long[biotypes_long_long$Dataset=="Cardiac" & biotypes_long_long$Sample %in% paste0(c("MF1701"), c(0,3:8)),]
-biotypes_long_long_endo <- biotypes_long_long[biotypes_long_long$Dataset=="Endothelial" & biotypes_long_long$Sample %in% c("Brain", "Colon", "Heart", "Kidney", "Liver", "Lung", "muscle_EDL", "muscle_Soleus", "Small_Intestine", "Spleen", "Testis"),]
-biotypes_long_long_endo <- biotypes_long_long_endo[biotypes_long_long_endo$Mapper %in% c("Cell Ranger", "STARsolo", "Alevin", "Kallisto"),]
-
-biotypes_long_long2 <- rbind(biotypes_long_long_pbmc, biotypes_long_long_cardiac, biotypes_long_long_endo)
-#biotypes_long_long <- biotypes_long_long[biotypes_long_long$value>0,]
-
-
-biotypes_long_long_aggr <- aggregate(value ~ Mapper + Dataset + Filtering + Biotype, data = biotypes_long_long2, mean)
-
-
-ggplot(biotypes_long_long_aggr, aes(x = Biotype, y = value, color = Mapper, shape = Filtering)) +
-  geom_point(position=position_dodge(width = 1), size = 3, alpha = 0.8) +
-  geom_vline(xintercept = seq(levels(biotypes_long_long_aggr$Biotype))+.5, color = "grey90") +
-  facet_grid(Dataset~.) +
-  scale_shape_manual(values=c(19, 14)) +
-  scale_color_brewer(palette = "Set2") +
-  theme_light() +
-  guides(shape = guide_legend(title = "Annotation")) +
-  theme(text = element_text(size = 17),
-        axis.text.x = element_text(angle = 60, vjust = +1, hjust = +1.1),
-        panel.grid = element_blank())
-
-
-ggsave("plots_revision/second_submission_plots/Suppl_Figures/Suppl_figure_3/Suppl_figure_3_CR5.svg", device = "svg", width = 13, height = 5)
-
-```
 
 ```{r Suppl. Figure 4 Heatmaps}
 # Graph for Vmn gene family will not be created because in humans it is
 # not highly expressed. You do not see much in the heatmap.
+pbmc_integrated <- pbmc_integrated[c(1,5,2,3,4)]
 
 p_heat <- lapply(pbmc_integrated$PBMC, function(x) {
   DefaultAssay(x) <-"RNA"
@@ -2635,11 +2199,8 @@ p_heat <- lapply(pbmc_integrated$PBMC, function(x) {
 
 p_heat_arranged <- ggpubr::ggarrange(plotlist = p_heat, labels = "AUTO", common.legend = T, legend = "right")
 
-ggsave("plots_revision/Suppl_figure_42.png", p_heat_arranged, device = "png", height = 10, width = 16)
+ggsave("plots_revision/Suppl_figure_4.png", p_heat_arranged, device = "png", height = 10, width = 16)
 
 
 ```
-
-
-
 
