@@ -21,8 +21,8 @@ library(ggalluvial)
 library(dplyr)
 
 #### !!! Please define the path to your downloaded Github directory and the output directory 
-github_path="/media/Helios_scStorage/Ralf/Benchmark/Gigascience/git/BenchmarkAlignment/"
-main_outpath="/media/Storage/Benchmark_test3/"
+github_path="/path/to/main/GithubRepository/BenchmarkAlignment/"
+main_outpath="/path/to/main/output/"
 setwd(main_outpath)
 
 #### State which datasets should be used ####
