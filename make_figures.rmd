@@ -20,7 +20,7 @@ library(SCINA)
 library(ggalluvial)
 library(dplyr)
 
-#### Define 
+#### !!! Please define the path to your downloaded Github directory and the output directory 
 github_path="/media/Helios_scStorage/Ralf/Benchmark/Gigascience/git/BenchmarkAlignment/"
 main_outpath="/media/Storage/Benchmark_test3/"
 setwd(main_outpath)
